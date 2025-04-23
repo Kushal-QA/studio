@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -10,14 +9,15 @@ import { Label } from "@/components/ui/label";
 export default function Home() {
   const [weight, setWeight] = useState<number | null>(null);
   const [height, setHeight] = useState<number | null>(null);
+  const [age, setAge] = useState<number | null>(null);
   const [maintenanceCalories, setMaintenanceCalories] = useState<number | null>(null);
   const [calorieSurplus, setCalorieSurplus] = useState<number | null>(null);
   const [calorieDeficit, setCalorieDeficit] = useState<number | null>(null);
 
   const calculateCalories = () => {
-    if (weight && height) {
+    if (weight && height && age) {
       // Mifflin-St Jeor Equation (simplified for sedentary male)
-      const bmr = 10 * weight + 6.25 * height - 5 * 25 + 5; // Assuming age 25
+      const bmr = 10 * weight + 6.25 * height - 5 * age + 5; // Assuming age 25
       const maintenance = bmr * 1.2; // Sedentary activity factor
       setMaintenanceCalories(Math.round(maintenance));
 
@@ -36,12 +36,17 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4 text-center">CalorieWise</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+            <p className="mb-2 text-sm">
+              Enter your weight, height, and age to calculate your daily calorie needs.
+              Calculations are based on the Mifflin-St Jeor equation and a sedentary activity level.
+            </p>
           <div className="mb-4">
             <Label htmlFor="weight">Weight (kg)</Label>
             <Input
               type="number"
               id="weight"
               placeholder="Enter weight in kg"
+              className="text-sm"
               onChange={(e) => setWeight(parseFloat(e.target.value))}
             />
           </div>
@@ -51,10 +56,21 @@ export default function Home() {
               type="number"
               id="height"
               placeholder="Enter height in cm"
+              className="text-sm"
               onChange={(e) => setHeight(parseFloat(e.target.value))}
             />
           </div>
-          <Button className="gradient-button w-full" onClick={calculateCalories}>
+           <div className="mb-4">
+            <Label htmlFor="age">Age (years)</Label>
+            <Input
+              type="number"
+              id="age"
+              placeholder="Enter age in years"
+              className="text-sm"
+              onChange={(e) => setAge(parseFloat(e.target.value))}
+            />
+          </div>
+          <Button className="gradient-button w-full text-sm" onClick={calculateCalories}>
             Calculate
           </Button>
         </div>
@@ -106,4 +122,3 @@ function CalorieCard({ title, calories, color }: CalorieCardProps) {
     </Card>
   );
 }
-
