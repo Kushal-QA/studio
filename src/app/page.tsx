@@ -15,6 +15,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Info } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from 'react';
 
 const activityFactors = {
   Sedentary: 1.2,
@@ -22,6 +24,20 @@ const activityFactors = {
   "Moderately Active": 1.55,
   Active: 1.725,
   "Very Active": 1.9,
+};
+
+const calculateBMR = (weight: number, height: number, age: number, gender: "male" | "female") => {
+  if (gender === "male") {
+    return 10 * weight + 6.25 * height - 5 * age + 5;
+  } else {
+    return 10 * weight + 6.25 * height - 5 * age - 161;
+  }
+};
+
+const calorieGoalLabels = {
+  lose: (percentage: number) => `Mild Deficit (${percentage}%)`,
+  maintain: () => "Maintain Weight",
+  gain: (percentage: number) => `Bulk - Surplus ${percentage}%`,
 };
 
 export default function Home() {
@@ -40,52 +56,102 @@ export default function Home() {
   const [carbs, setCarbs] = useState<number | null>(null);
   const [waterIntake, setWaterIntake] = useState<number | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [weightError, setWeightError] = useState<string | null>(null);
+  const [heightError, setHeightError] = useState<string | null>(null);
+  const [ageError, setAgeError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const validateInputs = () => {
+    let isValid = true;
+
+    if (!weight || weight <= 0) {
+      setWeightError("Please enter a valid weight.");
+      isValid = false;
+    } else {
+      setWeightError(null);
+    }
+
+    if (!height || height <= 0) {
+      setHeightError("Please enter a valid height.");
+      isValid = false;
+    } else {
+      setHeightError(null);
+    }
+
+    if (!age || age < 15 || age > 100) {
+      setAgeError("Please enter a valid age (15-100).");
+      isValid = false;
+    } else {
+      setAgeError(null);
+    }
+
+    return isValid;
+  };
 
   const calculateCalories = () => {
-    if (weight && height && age) {
-      // Mifflin-St Jeor Equation
-      let bmr: number;
-      if (gender === "male") {
-        bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-      } else {
-        bmr = 10 * weight + 6.25 * height - 5 * age - 161;
-      }
-
-      const maintenance = bmr * activityFactors[activityLevel];
-      setMaintenanceCalories(Math.round(maintenance));
-
-      let surplusMultiplier = 1 + surplusDeficitPercentage / 100;
-      let deficitMultiplier = 1 - surplusDeficitPercentage / 100;
-
-      let surplus = maintenance * surplusMultiplier;
-      let deficit = maintenance * deficitMultiplier;
-
-      setCalorieSurplus(Math.round(surplus));
-      setCalorieDeficit(Math.round(deficit));
-
-      // Macronutrient Breakdown
-      let proteinGrams: number;
-      if (calorieGoal === "gain") {
-        proteinGrams = weight * 2; // 1.6-2.2g/kg for gain (using 2 as average)
-      } else {
-        proteinGrams = weight * 1.4; // 1.2-1.6g/kg for maintenance/loss (using 1.4 as average)
-      }
-      setProtein(Math.round(proteinGrams));
-
-      const fatCalories = maintenance * 0.25; // 20-30% of total calories (using 25% as average)
-      const fatGrams = fatCalories / 9;
-      setFat(Math.round(fatGrams));
-
-      const proteinCalories = proteinGrams * 4;
-      const carbsCalories = maintenance - proteinCalories - fatCalories;
-      const carbsGrams = carbsCalories / 4;
-      setCarbs(Math.round(carbsGrams));
-
-      // Daily Water Intake Suggestion
-      const water = weight * 35; // 35 ml per kg of body weight
-      setWaterIntake(Math.round(water));
+    if (!validateInputs()) {
+      toast({
+        title: "Error",
+        description: "Please correct the invalid fields.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setIsCalculating(true);
+
+    setTimeout(() => {
+      if (weight && height && age) {
+        const bmr = calculateBMR(weight, height, age, gender);
+        const maintenance = bmr * activityFactors[activityLevel];
+        setMaintenanceCalories(Math.round(maintenance));
+
+        let surplusMultiplier = 1 + surplusDeficitPercentage / 100;
+        let deficitMultiplier = 1 - surplusDeficitPercentage / 100;
+
+        let surplus = maintenance * surplusMultiplier;
+        let deficit = maintenance * deficitMultiplier;
+
+        setCalorieSurplus(Math.round(surplus));
+        setCalorieDeficit(Math.round(deficit));
+
+        let proteinGrams: number;
+        if (calorieGoal === "gain") {
+          proteinGrams = weight * 2; // 1.6-2.2g/kg for gain (using 2 as average)
+        } else {
+          proteinGrams = weight * 1.4; // 1.2-1.6g/kg for maintenance/loss (using 1.4 as average)
+        }
+        setProtein(Math.round(proteinGrams));
+
+        const fatCalories = maintenance * 0.25; // 20-30% of total calories (using 25% as average)
+        const fatGrams = fatCalories / 9;
+        setFat(Math.round(fatGrams));
+
+        const proteinCalories = proteinGrams * 4;
+        const carbsCalories = maintenance - proteinCalories - fatCalories;
+        const carbsGrams = carbsCalories / 4;
+        setCarbs(Math.round(carbsGrams));
+
+        const water = weight * 35; // 35 ml per kg of body weight
+        setWaterIntake(Math.round(water));
+      }
+      setIsCalculating(false);
+    }, 500);
   };
+
+  const calorieGoalLabel =
+    calorieGoal === "maintain"
+      ? calorieGoalLabels.maintain()
+      : calorieGoalLabels[calorieGoal](surplusDeficitPercentage);
 
   return (
     <div className={`container mx-auto p-4 ${darkMode ? 'dark' : ''}`}>
@@ -102,7 +168,7 @@ export default function Home() {
             Enter your weight, height, and age to calculate your daily calorie needs.
             Calculations are based on the Mifflin-St Jeor equation.
           </p>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="weight">
               Weight (kg)
               <TooltipProvider>
@@ -120,9 +186,11 @@ export default function Home() {
               placeholder="Enter weight in kg"
               className="text-sm"
               onChange={(e) => setWeight(parseFloat(e.target.value))}
+              aria-invalid={!!weightError}
             />
+            {weightError && <p className="text-xs text-red-500">{weightError}</p>}
           </div>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="height">
               Height (cm)
               <TooltipProvider>
@@ -140,9 +208,11 @@ export default function Home() {
               placeholder="Enter height in cm"
               className="text-sm"
               onChange={(e) => setHeight(parseFloat(e.target.value))}
+              aria-invalid={!!heightError}
             />
+            {heightError && <p className="text-xs text-red-500">{heightError}</p>}
           </div>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="age">
               Age (years)
               <TooltipProvider>
@@ -160,12 +230,14 @@ export default function Home() {
               placeholder="Enter age in years"
               className="text-sm"
               onChange={(e) => setAge(parseFloat(e.target.value))}
+              aria-invalid={!!ageError}
             />
+            {ageError && <p className="text-xs text-red-500">{ageError}</p>}
           </div>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="gender">Gender</Label>
-            <Select value={gender} onValueChange={(value) => setGender(value as "male" | "female")}>
-              <SelectTrigger className="text-sm">
+            <Select value={gender} onValueChange={(value) => setGender(value as "male" | "female")} className="text-sm">
+              <SelectTrigger>
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -174,10 +246,10 @@ export default function Home() {
               </SelectContent>
             </Select>
           </div>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="activity-level">Activity Level</Label>
-            <Select value={activityLevel} onValueChange={(value) => setActivityLevel(value as keyof typeof activityFactors)}>
-              <SelectTrigger className="text-sm">
+            <Select value={activityLevel} onValueChange={(value) => setActivityLevel(value as keyof typeof activityFactors)} className="text-sm">
+              <SelectTrigger>
                 <SelectValue placeholder="Select activity level" />
               </SelectTrigger>
               <SelectContent>
@@ -187,10 +259,10 @@ export default function Home() {
               </SelectContent>
             </Select>
           </div>
-          <div className="mb-4">
+          <div className="mb-2">
             <Label htmlFor="calorie-goal">Calorie Goal</Label>
-            <Select value={calorieGoal} onValueChange={(value) => setCalorieGoal(value as "lose" | "maintain" | "gain")}>
-              <SelectTrigger className="text-sm">
+            <Select value={calorieGoal} onValueChange={(value) => setCalorieGoal(value as "lose" | "maintain" | "gain")} className="text-sm">
+              <SelectTrigger>
                 <SelectValue placeholder="Select calorie goal" />
               </SelectTrigger>
               <SelectContent>
@@ -200,8 +272,18 @@ export default function Home() {
               </SelectContent>
             </Select>
           </div>
-          <div className="mb-4">
-            <Label htmlFor="surplus-deficit">Surplus/Deficit (%)</Label>
+          <div className="mb-2">
+            <Label htmlFor="surplus-deficit">
+              Surplus/Deficit (%)
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 inline-block ml-1 align-top" />
+                  </TooltipTrigger>
+                  <TooltipContent>The percentage of calories to add (surplus) or subtract (deficit) from your maintenance calories.</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
             <Slider
               id="surplus-deficit"
               defaultValue={[surplusDeficitPercentage]}
@@ -212,28 +294,32 @@ export default function Home() {
             />
             <p className="text-sm mt-1">Selected: {surplusDeficitPercentage}%</p>
           </div>
-          <Button className="gradient-button w-full text-sm" onClick={calculateCalories}>
-            Calculate
+          <Button
+            className="gradient-button w-full text-sm"
+            onClick={calculateCalories}
+            disabled={isCalculating}
+          >
+            {isCalculating ? "Calculating..." : "Calculate"}
           </Button>
         </div>
         <div className="flex flex-col gap-4">
           {maintenanceCalories && (
             <>
               <CalorieCard
-                title="Maintenance ⚖️"
+                title={`Maintenance ⚖️`}
                 calories={maintenanceCalories}
                 color="hsl(var(--bright-amber))"
               />
               {calorieGoal === "gain" && calorieSurplus && (
                 <CalorieCard
-                  title="Gain Weight 🍔"
+                  title={`${calorieGoalLabels.gain(surplusDeficitPercentage)} 🍔`}
                   calories={calorieSurplus}
                   color="hsl(var(--turquoise))"
                 />
               )}
               {calorieGoal === "lose" && calorieDeficit && (
                 <CalorieCard
-                  title="Lose Weight 🏃‍♂️"
+                  title={`${calorieGoalLabels.lose(surplusDeficitPercentage)} 🏃‍♂️`}
                   calories={calorieDeficit}
                   color="hsl(var(--coral-red))"
                 />
