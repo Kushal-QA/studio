@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Generates a sample Indian meal plan based on calorie target.
+ * @fileOverview Generates a sample Indian meal plan based on calorie target, weight goal, and diet preference.
  *
  * - generateMealPlan - A function that handles the meal plan generation process.
  * - GenerateMealPlanInput - The input type for the generateMealPlan function.
@@ -25,6 +25,8 @@ const MealSchema = z.object({
 
 const GenerateMealPlanInputSchema = z.object({
   calories: z.number().describe('Target daily calories for the meal plan.'),
+  weightGoal: z.enum(['lose', 'maintain', 'gain']).describe('User weight goal: lose, maintain, or gain weight.'),
+  dietPreference: z.enum(['vegetarian', 'non-vegetarian']).describe('User diet preference: vegetarian or non-vegetarian.'),
 });
 export type GenerateMealPlanInput = z.infer<typeof GenerateMealPlanInputSchema>;
 
@@ -37,28 +39,39 @@ export type GenerateMealPlanOutput = z.infer<typeof GenerateMealPlanOutputSchema
 
 const generateMealPlanPrompt = ai.definePrompt({
   name: 'generateMealPlanPrompt',
-  model: 'googleai/gemini-1.5-flash', // Explicitly set the model
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: GenerateMealPlanInputSchema },
   output: { schema: GenerateMealPlanOutputSchema },
   prompt: `You are an expert nutritionist specializing in Indian cuisine.
-Your task is to generate a sample one-day meal plan for an Indian user.
+Your task is to generate a detailed one-day meal plan for an Indian user.
 
-Target Daily Calories: {{{calories}}}
+User Preferences:
+- Weight Goal: {{{weightGoal}}}
+- Target Daily Calories: {{{calories}}}
+- Diet Preference: {{{dietPreference}}}
 
 Instructions:
-1.  The meal plan should be for a single day and include common Indian dishes.
-2.  Structure the plan into distinct meals: Breakfast, Lunch, Dinner. You can also include Morning Snack and Evening Snack if appropriate for the calorie target.
-3.  For each meal, list specific food items.
-4.  For each food item, provide a realistic quantity (e.g., "2 medium idlis", "1 cup (cooked)", "100g grilled").
-5.  Optionally, you can provide an estimated calorie count for each item and for each meal, and an overall estimated total for the day. Try to make the overall estimated total calories as close as possible to the target daily calories.
-6.  Focus on a balanced distribution of macronutrients (protein, carbohydrates, fats) from common Indian food sources.
-7.  Prioritize readily available and commonly consumed Indian foods. Avoid exotic or hard-to-find ingredients.
-8.  The output MUST be in the specified JSON format. Ensure all field names and structures match the output schema.
+1.  **Diet Type**: Adhere to the specified '{{{dietPreference}}}' preference.
+2.  **Macros**: Aim for a balanced distribution of macronutrients.
+    - If '{{{weightGoal}}}' is 'lose': Target approximately 40% carbs, 30% protein, 30% fats.
+    - If '{{{weightGoal}}}' is 'gain': Target approximately 50% carbs, 25-30% protein, 20-25% fats. Ensure sufficient protein for muscle growth and use complex carbs for energy.
+    - If '{{{weightGoal}}}' is 'maintain': Target approximately 50% carbs, 20-25% protein, 25-30% fats.
+3.  **Meals**: The meal plan MUST include Breakfast, Lunch, and Dinner. Optionally, you can include Mid-Morning Snack and Evening Snack if appropriate for the calorie target and dietary goals. Ensure items are well-distributed across meals.
+4.  **Food Choices based on Goal**:
+    - If '{{{weightGoal}}}' is 'lose': Focus on high-protein, high-fiber, low-glycemic index foods. Examples: dal, roti (whole wheat/multigrain), lots of vegetables, salads, sprouts, quinoa. Minimize added fats and simple carbs.
+    - If '{{{weightGoal}}}' is 'gain': Include calorie-dense and protein-rich foods. Examples: nuts (almonds, walnuts), seeds (chia, flax), ghee, full-fat dairy (paneer, curd), bananas, peanut butter, chicken, fish, eggs (if '{{{dietPreference}}}' is 'non-vegetarian'), rice, potatoes.
+    - If '{{{weightGoal}}}' is 'maintain': Focus on balanced portions of whole foods. Examples: roti/rice, sabzi (vegetable curry), dal, curd.
+5.  **Common Indian Foods**: Utilize common Indian ingredients and dishes.
+    - Vegetarian examples: roti, rice, various dals (lentil preparations), paneer (Indian cheese), seasonal vegetables, curd (yogurt), poha, upma, idli, dosa, khichdi, sabudana.
+    - Non-vegetarian examples (if '{{{dietPreference}}}' is 'non-vegetarian'): chicken curry/tikka, fish fry/curry, egg bhurji/curry/boiled eggs.
+6.  **Avoid**: Strictly avoid processed foods, sugary drinks, deep-fried items (unless specified for gain in moderation), and excessive refined sugar.
+7.  **Calorie Details**: For each food item, provide a name, quantity, and estimated calories. Calculate total calories for each meal and an overall estimated total for the day. Ensure the 'estimatedTotalCalories' for the 'dailyMealPlan' is as close as possible to the target '{{{calories}}}'.
+8.  **Output Format**: The output MUST be in the specified JSON format. Ensure all field names and structures match the output schema precisely.
 
-Example of a meal item:
+Example of a meal item structure:
 { "name": "Roti (Whole Wheat)", "quantity": "2 small", "calories": 140 }
 
-Example of a meal:
+Example of a meal structure:
 {
   "name": "Breakfast",
   "items": [
@@ -68,7 +81,7 @@ Example of a meal:
   "totalCalories": 350
 }
 
-Begin generating the meal plan now based on the {{{calories}}} calorie target.
+Begin generating the meal plan now.
 `,
 });
 
@@ -79,7 +92,6 @@ const generateMealPlanFlow = ai.defineFlow(
     outputSchema: GenerateMealPlanOutputSchema,
   },
   async (input) => {
-    // Log input for debugging
     console.log('Generating meal plan for input:', JSON.stringify(input, null, 2));
     
     const { output } = await generateMealPlanPrompt(input);
@@ -88,11 +100,9 @@ const generateMealPlanFlow = ai.defineFlow(
       console.error('Meal plan generation failed: Model did not return valid output.');
       throw new Error('Failed to generate meal plan. The model did not return valid output.');
     }
-    // Basic validation for the presence of core meals
+    
     const mealNames = output.dailyMealPlan.map(meal => meal.name.toLowerCase());
     if (!mealNames.includes('breakfast') || !mealNames.includes('lunch') || !mealNames.includes('dinner')) {
-        // This is a soft check, ideally schema validation from Zod handles most of it.
-        // If LLM misses core meals, it's an issue.
         console.warn("Generated meal plan might be missing core meals (Breakfast, Lunch, Dinner). Output:", JSON.stringify(output, null, 2));
     }
     return output;
@@ -103,11 +113,19 @@ export async function generateMealPlan(input: GenerateMealPlanInput): Promise<Ge
   try {
     return await generateMealPlanFlow(input);
   } catch (error) {
-    // Log the error on the server side as well
     console.error('Error in generateMealPlan server function:', error);
-    // Re-throw the error so it can be caught by the client-side caller
-    // and display an appropriate message to the user.
-    // Consider wrapping in a more specific error type if needed.
-    throw error; 
+    // Consider logging the error to a monitoring service in production
+    // For now, re-throw to be caught by client
+    if (error instanceof Error) {
+      // Check for specific error messages if needed, e.g. API key issues
+      if (error.message.includes("API key not valid")) {
+         throw new Error("API Key is invalid or missing. Please check server configuration.");
+      }
+       if (error.message.includes("Model not found")) {
+         throw new Error("AI Model not found. Please check model name in configuration.");
+       }
+    }
+    throw new Error(`Failed to generate meal plan: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
+

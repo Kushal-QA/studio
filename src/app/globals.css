@@ -159,8 +159,8 @@ body {
   color: hsl(var(--primary-foreground)); /* Ensure text is readable on gradient */
   font-weight: bold;
   border-radius: var(--radius);
-  padding: 0.75rem 1.5rem; /* Slightly larger padding for better click target */
-  box-shadow: 0 4px 15px hsla(var(--primary), 0.2); /* Softer shadow */
+  padding: 0.75rem 1.5rem; 
+  box-shadow: 0 4px 15px hsla(var(--primary), 0.2); 
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 .gradient-button:hover {
@@ -170,13 +170,13 @@ body {
 
 /* Card styling based on proposal */
 .rounded-2xl {
-  border-radius: var(--radius) !important; /* Ensure 20px rounded corners are applied */
+  border-radius: var(--radius) !important; 
 }
 .shadow-md {
    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 .dark .shadow-md {
-  box-shadow: 0 4px 6px -1px hsla(var(--foreground), 0.1), 0 2px 4px -1px hsla(var(--foreground), 0.06); /* Dark mode shadow */
+  box-shadow: 0 4px 6px -1px hsla(var(--foreground), 0.1), 0 2px 4px -1px hsla(var(--foreground), 0.06); 
 }
 .shadow-lg {
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.1);
@@ -197,12 +197,12 @@ body {
   border-color: hsl(var(--primary)) !important;
 }
 .dark .bg-background { /* Slider thumb inner background */
-   background-color: hsl(var(--card)) !important; /* Or --background if preferred */
+   background-color: hsl(var(--card)) !important; 
 }
 
 /* Ensure SelectTrigger and SelectContent use theme variables */
 .dark .bg-background {
-  background-color: hsl(var(--card)) !important; /* Often select trigger uses this */
+  background-color: hsl(var(--card)) !important; 
 }
 .dark .text-muted-foreground {
   color: hsl(var(--muted-foreground)) !important;
@@ -222,15 +222,21 @@ body {
   background-color: hsl(var(--input)) !important;
 }
 .dark .bg-background { /* Switch thumb */
-  background-color: hsl(var(--card-foreground)) !important; /* Or something highly contrasting to primary/input */
+  background-color: hsl(var(--card-foreground)) !important; 
 }
 
 
 h1, h2, h3, h4, h5, h6 {
-  color: hsl(var(--foreground)); /* Ensure headings use the correct foreground color */
-  font-family: 'Poppins', sans-serif; /* Example of applying Poppins to headings */
+  color: hsl(var(--foreground)); 
+  font-family: 'Poppins', sans-serif; 
 }
-p, span, label, div {
-    /* General text elements if not specifically overridden by components */
-   /* color: hsl(var(--foreground));  Already set on body, this is for specificity if needed */
+
+/* FadeIn Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
