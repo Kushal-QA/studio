@@ -1,4 +1,5 @@
 
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,81 +11,107 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 8.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 8.4% 11.2%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 8.4% 11.2%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --primary: 150 100% 32%;
-    --primary-foreground: 355 100% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --ring: 150 100% 32%;
-    --radius: 0.5rem;
+    --background: 0 0% 100%; /* White */
+    --foreground: 240 13% 20%; /* Deep Charcoal for text */
+    
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 240 13% 20%; /* Deep Charcoal */
+    
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 240 13% 20%; /* Deep Charcoal */
+    
+    --primary: 166 100% 39%; /* Vibrant Turquoise base #00C9A7 */
+    --primary-foreground: 0 0% 100%; /* White for text on primary */
+    
+    --secondary: 30 100% 94%; /* Light Peach #FFF5E1 for subtle backgrounds */
+    --secondary-foreground: 240 13% 20%; /* Deep Charcoal */
+    
+    --muted: 220 20% 92%; /* Light Grey for muted elements */
+    --muted-foreground: 240 10% 40%; /* Grey text for muted foreground */
+    
+    --accent: 0 100% 71%; /* Coral Red base #FF6B6B */
+    --accent-foreground: 0 0% 100%; /* White for text on accent */
+    
+    --destructive: 0 100% 71%; /* Coral Red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White */
+    
+    --border: 220 15% 88%; /* Soft Grey for borders */
+    --input: 220 15% 88%; /* Soft Grey for input borders */
+    --ring: 166 100% 39%; /* Vibrant Turquoise for focus rings */
 
-    /* Custom Colors */
-    --turquoise: 166 100% 25%; /* #00C9A7 */
-    --coral-red: 0 100% 48%;   /* #FF6B6B */
-    --bright-amber: 46 100% 43%; /* #FFC107 */
+    --radius: 20px; /* Rounded corners */
+
+    /* Custom Colors from Proposal */
+    --turquoise: 166 100% 39%; /* #00C9A7 */
+    --coral-red: 0 100% 71%;   /* #FF6B6B */
+    --bright-amber: 39 100% 51%; /* #FFC107 */
     --deep-charcoal: 240 13% 20%;  /* #333333 */
 
-    /* Sidebar Colors */
+    /* Background gradient colors */
+    --bg-gradient-start: 30 100% 94%; /* #FFF5E1 */
+    --bg-gradient-end: 330 100% 97%;  /* #FFE6F7 */
+
+
+    /* Sidebar Colors (using same as card for simplicity now, can be customized) */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-foreground: 240 13% 20%;
+    --sidebar-primary: 166 100% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 100% 71%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 166 100% 39%;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --primary: 127 100% 71%;
-    --primary-foreground: 222.2 47.4% 1.2%;
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
-    --accent: 222.2 47.4% 11.2%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --ring: 217.9 100% 64.5%;
-    --radius: 0.5rem;
+    --background: 240 10% 15%; /* Dark Grey, almost black */
+    --foreground: 0 0% 95%; /* Light Grey/Off-white text */
+    
+    --card: 240 8% 20%; /* Slightly lighter dark grey for cards */
+    --card-foreground: 0 0% 95%; /* Light Grey/Off-white text */
+    
+    --popover: 240 8% 18%; /* Darker popover */
+    --popover-foreground: 0 0% 95%;
+    
+    --primary: 166 100% 50%; /* Brighter Turquoise for dark mode */
+    --primary-foreground: 240 13% 10%; /* Dark text for contrast on primary */
+    
+    --secondary: 240 7% 25%; /* Darker secondary background */
+    --secondary-foreground: 0 0% 90%;
+    
+    --muted: 240 5% 30%; /* Dark muted elements */
+    --muted-foreground: 0 0% 60%; /* Lighter grey muted text */
+    
+    --accent: 0 100% 75%; /* Brighter Coral Red for dark mode */
+    --accent-foreground: 240 13% 10%; /* Dark text for contrast on accent */
+    
+    --destructive: 0 100% 75%;
+    --destructive-foreground: 240 13% 10%;
+    
+    --border: 240 5% 35%; /* Lighter border for dark mode */
+    --input: 240 5% 35%;  /* Input border for dark mode */
+    --ring: 166 100% 50%;
 
-    /* Custom Colors */
+    /* Custom Colors for Dark Mode (adjust for visibility) */
     --turquoise: 166 100% 50%;
-    --coral-red: 0 100% 70%;
-    --bright-amber: 46 100% 65%;
-    --deep-charcoal: 240 13% 80%;
+    --coral-red: 0 100% 75%;
+    --bright-amber: 39 100% 60%; 
+    --deep-charcoal: 0 0% 95%; /* Text color becomes light */
 
-    /* Sidebar Colors */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Background gradient colors for Dark Mode */
+    --bg-gradient-start: 240 10% 10%; /* Very Dark Blue/Grey */
+    --bg-gradient-end: 300 10% 12%;  /* Dark Purple/Grey */
+
+
+    /* Sidebar Colors for Dark Mode */
+    --sidebar-background: 240 8% 20%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 166 100% 50%;
+    --sidebar-primary-foreground: 240 13% 10%;
+    --sidebar-accent: 0 100% 75%;
+    --sidebar-accent-foreground: 240 13% 10%;
+    --sidebar-border: 240 5% 35%;
+    --sidebar-ring: 166 100% 50%;
   }
 }
 
@@ -94,17 +121,116 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
-    color: hsl(var(--deep-charcoal));
+    /* Use the gradient defined by CSS variables */
+    background: linear-gradient(to bottom, hsl(var(--bg-gradient-start)), hsl(var(--bg-gradient-end)));
+    font-family: 'Poppins', 'Inter', sans-serif; /* Added Poppins as preferred, Inter as fallback */
+    color: hsl(var(--foreground)); /* Use foreground for general text */
+    min-height: 100vh;
   }
+  /* Ensure input fields and selects use theme colors in dark mode */
+  .dark input, .dark select, .dark textarea {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border-color: hsl(var(--input));
+  }
+   .dark input::placeholder, .dark textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Ensure ShadCN UI components respect dark mode variables */
+  .dark .bg-card { background-color: hsl(var(--card)) !important; }
+  .dark .text-card-foreground { color: hsl(var(--card-foreground)) !important; }
+  .dark .bg-popover { background-color: hsl(var(--popover)) !important; }
+  .dark .text-popover-foreground { color: hsl(var(--popover-foreground)) !important; }
+  .dark .border-border { border-color: hsl(var(--border)) !important; }
+  .dark .text-muted-foreground { color: hsl(var(--muted-foreground)) !important; }
+  .dark .bg-primary { background-color: hsl(var(--primary)) !important; }
+  .dark .text-primary-foreground { color: hsl(var(--primary-foreground)) !important; }
+  .dark .bg-secondary { background-color: hsl(var(--secondary)) !important; }
+  .dark .text-secondary-foreground { color: hsl(var(--secondary-foreground)) !important; }
+  .dark .ring-ring { box-shadow: 0 0 0 2px hsl(var(--ring)) !important; }
+
+
 }
 
 /* Button Gradient */
 .gradient-button {
   background: linear-gradient(135deg, hsl(var(--turquoise)), hsl(var(--bright-amber)));
-  color: hsl(var(--primary-foreground));
+  color: hsl(var(--primary-foreground)); /* Ensure text is readable on gradient */
   font-weight: bold;
+  border-radius: var(--radius);
+  padding: 0.75rem 1.5rem; /* Slightly larger padding for better click target */
+  box-shadow: 0 4px 15px hsla(var(--primary), 0.2); /* Softer shadow */
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.gradient-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px hsla(var(--primary), 0.3);
+}
+
+/* Card styling based on proposal */
+.rounded-2xl {
+  border-radius: var(--radius) !important; /* Ensure 20px rounded corners are applied */
+}
+.shadow-md {
+   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.dark .shadow-md {
+  box-shadow: 0 4px 6px -1px hsla(var(--foreground), 0.1), 0 2px 4px -1px hsla(var(--foreground), 0.06); /* Dark mode shadow */
+}
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.1);
+}
+.dark .shadow-lg {
+   box-shadow: 0 10px 15px -3px hsla(var(--foreground), 0.1), 0 4px 6px -2px hsla(var(--foreground), 0.1);
 }
 
 
+/* Ensure slider track and thumb styles are consistent in dark mode */
+.dark .bg-secondary { /* Slider track background */
+  background-color: hsl(var(--muted)) !important;
+}
+.dark .bg-primary { /* Slider range and thumb */
+  background-color: hsl(var(--primary)) !important;
+}
+.dark .border-primary { /* Slider thumb border */
+  border-color: hsl(var(--primary)) !important;
+}
+.dark .bg-background { /* Slider thumb inner background */
+   background-color: hsl(var(--card)) !important; /* Or --background if preferred */
+}
 
+/* Ensure SelectTrigger and SelectContent use theme variables */
+.dark .bg-background {
+  background-color: hsl(var(--card)) !important; /* Often select trigger uses this */
+}
+.dark .text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .placeholder\:text-muted-foreground::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .border-input {
+  border-color: hsl(var(--input)) !important;
+}
+
+/* Ensure Switch component uses theme variables */
+.dark [data-state=checked].bg-primary {
+  background-color: hsl(var(--primary)) !important;
+}
+.dark [data-state=unchecked].bg-input {
+  background-color: hsl(var(--input)) !important;
+}
+.dark .bg-background { /* Switch thumb */
+  background-color: hsl(var(--card-foreground)) !important; /* Or something highly contrasting to primary/input */
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground)); /* Ensure headings use the correct foreground color */
+  font-family: 'Poppins', sans-serif; /* Example of applying Poppins to headings */
+}
+p, span, label, div {
+    /* General text elements if not specifically overridden by components */
+   /* color: hsl(var(--foreground));  Already set on body, this is for specificity if needed */
+}

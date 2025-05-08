@@ -90,9 +90,10 @@ export default {
   			'accordion-up': 'accordion-up 0.2s ease-out'
   		},
       fontFamily: {
-        'inter': ['Inter', 'sans-serif'],
+        sans: ['var(--font-poppins)', 'var(--font-inter)', 'sans-serif'],
       },
   	}
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+
