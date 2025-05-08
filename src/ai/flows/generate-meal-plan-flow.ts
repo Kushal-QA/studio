@@ -37,7 +37,7 @@ export type GenerateMealPlanOutput = z.infer<typeof GenerateMealPlanOutputSchema
 
 const generateMealPlanPrompt = ai.definePrompt({
   name: 'generateMealPlanPrompt',
-  model: 'googleai/gemini-1.5-flash-latest', // Explicitly set the model
+  model: 'googleai/gemini-1.5-flash', // Explicitly set the model
   input: { schema: GenerateMealPlanInputSchema },
   output: { schema: GenerateMealPlanOutputSchema },
   prompt: `You are an expert nutritionist specializing in Indian cuisine.

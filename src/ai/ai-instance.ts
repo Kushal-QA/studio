@@ -1,3 +1,4 @@
+
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
@@ -15,6 +16,7 @@ export const ai = genkit({
       apiKey: process.env.GOOGLE_GENAI_API_KEY,
     }),
   ],
-  // Set a valid default model. gemini-1.5-flash-latest is a common choice for balanced performance and cost.
-  model: 'googleai/gemini-1.5-flash-latest',
+  // Set a valid default model. gemini-1.5-flash is a common choice for balanced performance and cost.
+  model: 'googleai/gemini-1.5-flash',
 });
+
