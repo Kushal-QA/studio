@@ -1,7 +1,6 @@
 
 "use client";
 
-import type { GenerateMealPlanOutput } from '@/ai/flows/generate-meal-plan-flow';
 import { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,17 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Info, Loader2, KeyRound } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { generateMealPlan } from '@/ai/flows/generate-meal-plan-flow';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 
 
 const activityFactors = {
@@ -51,14 +41,6 @@ const calorieGoalLabels = {
   gain: (percentage: number) => `Surplus (${percentage}%)`,
 };
 
-const mealColors = [
-  "hsl(var(--turquoise))",
-  "hsl(var(--coral-red))",
-  "hsl(var(--bright-amber))",
-  "hsl(var(--primary))",
-  "hsl(var(--accent))",
-];
-
 
 export default function Home() {
   const [weight, setWeight] = useState<number | null>(70);
@@ -68,7 +50,6 @@ export default function Home() {
   const [activityLevel, setActivityLevel] = useState<keyof typeof activityFactors>("Sedentary");
   const [calorieGoal, setCalorieGoal] = useState<"lose" | "maintain" | "gain">("maintain");
   const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(15);
-  const [dietPreference, setDietPreference] = useState<'vegetarian' | 'non-vegetarian'>('vegetarian');
   
   const [maintenanceCalories, setMaintenanceCalories] = useState<number | null>(null);
   const [calorieSurplus, setCalorieSurplus] = useState<number | null>(null);
@@ -88,13 +69,6 @@ export default function Home() {
   
   const { toast } = useToast();
 
-  const [generatedMealPlan, setGeneratedMealPlan] = useState<GenerateMealPlanOutput | null>(null);
-  const [isGeneratingMealPlan, setIsGeneratingMealPlan] = useState<boolean>(false);
-  const [userDeclinedMealPlan, setUserDeclinedMealPlan] = useState<boolean>(false);
-
-  const [apiKey, setApiKey] = useState<string>('');
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState<boolean>(false);
-  const [tempApiKey, setTempApiKey] = useState<string>('');
 
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode');
@@ -113,31 +87,8 @@ export default function Home() {
             if (prefersDark) document.documentElement.classList.add('dark');
         }
     }
-
-    const storedApiKey = localStorage.getItem('genAiApiKey');
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
-    } else {
-      // Only show dialog if API key is NOT set by environment variable.
-      // This check is a bit indirect; assumes if process.env.NEXT_PUBLIC_GOOGLE_GENAI_API_KEY is set,
-      // we don't need to prompt. Client-side can't directly check server .env.
-      // A better approach might be an API endpoint that confirms key status.
-      // For now, if localStorage is empty, we assume we might need to prompt.
-      // The actual API call failure will be the ultimate trigger if no key is available.
-    }
   }, []);
   
-  const handleApiKeySubmit = () => {
-    if (tempApiKey) {
-      localStorage.setItem('genAiApiKey', tempApiKey);
-      setApiKey(tempApiKey);
-      setShowApiKeyDialog(false);
-      toast({ title: "API Key Saved", description: "Your API key has been saved in browser storage." });
-    } else {
-      toast({ title: "Error", description: "Please enter an API key.", variant: "destructive" });
-    }
-  };
-
 
   const handleDarkModeChange = (checked: boolean) => {
     setDarkMode(checked);
@@ -164,8 +115,6 @@ export default function Home() {
       return;
     }
     setIsCalculating(true);
-    setGeneratedMealPlan(null);
-    setUserDeclinedMealPlan(false);
 
     setTimeout(() => {
       if (weight && height && age) {
@@ -201,86 +150,11 @@ export default function Home() {
     }, 500);
   };
 
-  const handleGenerateMealPlan = async () => {
-    if (!maintenanceCalories) return;
-     // Check if API key is available (either from env var or localStorage)
-    const currentApiKey = process.env.NEXT_PUBLIC_GOOGLE_GENAI_API_KEY || apiKey;
-    if (!currentApiKey) {
-      setShowApiKeyDialog(true);
-      toast({
-        title: "API Key Required",
-        description: "Please enter your Google Generative AI API key to generate a meal plan.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-
-    let targetCalories = maintenanceCalories;
-    if (calorieGoal === 'gain' && calorieSurplus) targetCalories = calorieSurplus;
-    else if (calorieGoal === 'lose' && calorieDeficit) targetCalories = calorieDeficit;
-
-    setIsGeneratingMealPlan(true);
-    setGeneratedMealPlan(null); 
-
-    try {
-      console.log(`Requesting meal plan for ${targetCalories} calories, goal: ${calorieGoal}, preference: ${dietPreference}.`);
-      const plan = await generateMealPlan({ 
-        calories: targetCalories,
-        weightGoal: calorieGoal,
-        dietPreference: dietPreference
-      });
-      setGeneratedMealPlan(plan);
-      toast({ title: "Meal Plan Generated!", description: "Your sample Indian meal plan is ready." });
-    } catch (error) {
-      console.error("Full error generating meal plan (client-side):", error);
-      let description = "Could not generate meal plan. Please try again.";
-      if (error instanceof Error) {
-        description = error.message; // Use the error message from the flow
-        if (error.message.toLowerCase().includes("api key")) {
-           setShowApiKeyDialog(true); // Prompt for API key if it's an API key error
-        }
-      }
-      toast({ title: "Error Generating Meal Plan", description, variant: "destructive" });
-    } finally {
-      setIsGeneratingMealPlan(false);
-    }
-  };
 
   const calorieGoalLabelText = calorieGoal === "maintain" ? calorieGoalLabels.maintain() : calorieGoalLabels[calorieGoal](surplusDeficitPercentage);
 
   return (
     <div className={`min-h-screen py-6 flex flex-col justify-center sm:py-12`}>
-      <Dialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Enter API Key</DialogTitle>
-            <DialogDescription>
-              Please enter your Google Generative AI API key to enable meal plan generation. Your key will be stored locally in your browser.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="apiKey" className="text-right">
-                API Key
-              </Label>
-              <Input
-                id="apiKey"
-                type="password"
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                className="col-span-3"
-                placeholder="Enter your API Key"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApiKeyDialog(false)}>Cancel</Button>
-            <Button onClick={handleApiKeySubmit}><KeyRound className="mr-2 h-4 w-4" /> Save Key</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <div className="relative py-3 sm:max-w-xl sm:mx-auto w-full px-4">
         <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--turquoise))] to-[hsl(var(--bright-amber))] shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
         <div className="relative px-4 py-10 bg-card shadow-2xl sm:rounded-3xl sm:p-8">
@@ -356,17 +230,6 @@ export default function Home() {
                   <p className="text-xs text-muted-foreground mt-1">Selected: {surplusDeficitPercentage}%</p>
                 </div>
               )}
-
-               <div>
-                <Label htmlFor="diet-preference" className="text-sm font-medium text-foreground">Diet Preference <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Select your dietary preference for the meal plan.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Select value={dietPreference} onValueChange={(value) => setDietPreference(value as 'vegetarian' | 'non-vegetarian')}>
-                  <SelectTrigger id="diet-preference" className="mt-1 text-sm"><SelectValue placeholder="Select diet preference" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                    <SelectItem value="non-vegetarian">Non-Vegetarian</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               
               <Button className="gradient-button w-full text-base py-2.5 mt-4" onClick={calculateCalories} disabled={isCalculating}> {/* Adjusted padding and margin */}
                 {isCalculating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculating...</> : "Calculate Calories"}
@@ -396,58 +259,6 @@ export default function Home() {
                     <CardContent>
                       <p className="text-lg font-semibold" style={{color: "hsl(var(--primary))"}}>{waterIntake} ml</p>
                       <p className="text-xs text-muted-foreground">Approximate daily hydration goal.</p>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {!generatedMealPlan && !isGeneratingMealPlan && !userDeclinedMealPlan && (
-                  <Card className="mt-4 shadow-lg rounded-2xl border-border"> {/* Adjusted margin */}
-                    <CardHeader><CardTitle className="text-lg text-foreground">Need a Meal Plan?</CardTitle></CardHeader>
-                    <CardContent>
-                      <p className="mb-3 text-sm text-muted-foreground"> {/* Adjusted margin */}
-                        Generate a sample Indian meal plan for your {calorieGoalLabelText.toLowerCase()} calories ({dietPreference})?
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-2"> {/* Adjusted gap */}
-                        <Button onClick={handleGenerateMealPlan} className="gradient-button flex-1 py-2" disabled={isGeneratingMealPlan}> {/* Adjusted padding */}
-                          {isGeneratingMealPlan ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Yes, Generate Meal Plan"}
-                        </Button>
-                        <Button variant="outline" onClick={() => setUserDeclinedMealPlan(true)} className="flex-1 py-2" disabled={isGeneratingMealPlan}> {/* Adjusted padding */}
-                          No, Thanks
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {isGeneratingMealPlan && !generatedMealPlan && (
-                  <div className="mt-4 flex items-center justify-center p-4 rounded-2xl border-border bg-card"> {/* Adjusted padding & margin */}
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin text-primary" /> {/* Adjusted size */}
-                    <p className="text-foreground text-sm">Generating your meal plan, please wait...</p> {/* Adjusted font size */}
-                  </div>
-                )}
-
-                {generatedMealPlan && (
-                  <Card className="mt-4 shadow-lg rounded-2xl border-border"> {/* Adjusted margin */}
-                    <CardHeader>
-                      <CardTitle className="text-lg text-foreground">Your Sample Indian Meal Plan</CardTitle>
-                      {generatedMealPlan.estimatedTotalCalories && (<CardDescription className="text-xs">Est. Total: {generatedMealPlan.estimatedTotalCalories} kcal ({calorieGoalLabelText}, {dietPreference})</CardDescription>)}
-                    </CardHeader>
-                    <CardContent className="space-y-3"> {/* Adjusted spacing */}
-                      {generatedMealPlan.dailyMealPlan.map((meal, index) => (
-                        <div key={meal.name + index} className="border-b border-border pb-2.5 last:border-b-0 last:pb-0"> {/* Adjusted padding */}
-                          <h4 className="font-semibold text-md mb-1.5 capitalize" style={{ color: mealColors[index % mealColors.length]}}> {/* Adjusted font size & margin */}
-                            {meal.name} {meal.totalCalories ? `(~${meal.totalCalories} kcal)` : ''}
-                          </h4>
-                          <ul className="list-disc pl-4 space-y-1 text-xs text-muted-foreground"> {/* Adjusted padding, spacing & font size */}
-                            {meal.items.map((item, itemIndex) => (
-                              <li key={item.name + itemIndex}>
-                                <span className="text-foreground font-medium">{item.name}:</span> {item.quantity} 
-                                {item.calories ? ` (~${item.calories} kcal)` : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
                     </CardContent>
                   </Card>
                 )}
@@ -483,3 +294,4 @@ function CalorieCard({ title, calories, color, description }: CalorieCardProps) 
     </Card>
   );
 }
+
