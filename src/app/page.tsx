@@ -52,9 +52,9 @@ const mealColors = [
 
 
 export default function Home() {
-  const [weight, setWeight] = useState<number | null>(null);
-  const [height, setHeight] = useState<number | null>(null);
-  const [age, setAge] = useState<number | null>(null);
+  const [weight, setWeight] = useState<number | null>(70); // Default for easier testing
+  const [height, setHeight] = useState<number | null>(175); // Default for easier testing
+  const [age, setAge] = useState<number | null>(30); // Default for easier testing
   const [gender, setGender] = useState<"male" | "female">("male");
   const [activityLevel, setActivityLevel] = useState<keyof typeof activityFactors>("Sedentary");
   const [calorieGoal, setCalorieGoal] = useState<"lose" | "maintain" | "gain">("maintain");
@@ -97,12 +97,14 @@ export default function Home() {
       }
     } else {
         // Default to system preference if no saved preference
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setDarkMode(prefersDark);
-        if (prefersDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
+        if (typeof window !== 'undefined') {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setDarkMode(prefersDark);
+            if (prefersDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         }
     }
   }, []);
@@ -202,6 +204,10 @@ export default function Home() {
         setWaterIntake(Math.round(water));
       }
       setIsCalculating(false);
+      toast({
+        title: "Calculations Complete!",
+        description: "Your calorie and macronutrient estimates are ready.",
+      });
     }, 500);
   };
 
@@ -219,6 +225,7 @@ export default function Home() {
     setGeneratedMealPlan(null); 
 
     try {
+      console.log(`Requesting meal plan for ${targetCalories} calories.`);
       const plan = await generateMealPlan({ calories: targetCalories });
       setGeneratedMealPlan(plan);
       toast({
@@ -226,10 +233,15 @@ export default function Home() {
         description: "Your sample Indian meal plan is ready.",
       });
     } catch (error) {
-      console.error("Error generating meal plan:", error);
+      console.error("Full error generating meal plan (client-side):", error);
+      let description = "Could not generate meal plan. Please try again.";
+      if (error instanceof Error) {
+        // You might want to tailor messages based on error.message if it's informative
+        // For example, if (error.message.includes("API key")) description = "API Key issue. Please check configuration."
+      }
       toast({
-        title: "Error",
-        description: "Could not generate meal plan. Please try again.",
+        title: "Error Generating Meal Plan",
+        description: description,
         variant: "destructive",
       });
     } finally {
@@ -253,7 +265,7 @@ export default function Home() {
               <h1 className="text-3xl font-bold text-foreground">CalorieWise</h1>
               <div className="flex items-center">
                 <Label htmlFor="dark-mode" className="mr-2 text-sm text-foreground">Dark Mode</Label>
-                <Switch id="dark-mode" checked={darkMode} onCheckedChange={handleDarkModeChange} />
+                <Switch id="dark-mode" checked={darkMode} onCheckedChange={handleDarkModeChange} aria-label="Toggle dark mode" />
               </div>
             </div>
             
@@ -279,10 +291,12 @@ export default function Home() {
                   id="weight"
                   placeholder="e.g., 70"
                   className="mt-1 text-sm"
-                  onChange={(e) => setWeight(parseFloat(e.target.value))}
+                  value={weight ?? ""}
+                  onChange={(e) => setWeight(e.target.value ? parseFloat(e.target.value) : null)}
                   aria-invalid={!!weightError}
+                  aria-describedby="weight-error"
                 />
-                {weightError && <p className="text-xs text-destructive mt-1">{weightError}</p>}
+                {weightError && <p id="weight-error" className="text-xs text-destructive mt-1">{weightError}</p>}
               </div>
 
               <div>
@@ -302,10 +316,12 @@ export default function Home() {
                   id="height"
                   placeholder="e.g., 175"
                   className="mt-1 text-sm"
-                  onChange={(e) => setHeight(parseFloat(e.target.value))}
+                  value={height ?? ""}
+                  onChange={(e) => setHeight(e.target.value ? parseFloat(e.target.value) : null)}
                   aria-invalid={!!heightError}
+                  aria-describedby="height-error"
                 />
-                {heightError && <p className="text-xs text-destructive mt-1">{heightError}</p>}
+                {heightError && <p id="height-error" className="text-xs text-destructive mt-1">{heightError}</p>}
               </div>
 
               <div>
@@ -325,16 +341,18 @@ export default function Home() {
                   id="age"
                   placeholder="e.g., 30"
                   className="mt-1 text-sm"
-                  onChange={(e) => setAge(parseFloat(e.target.value))}
+                  value={age ?? ""}
+                  onChange={(e) => setAge(e.target.value ? parseFloat(e.target.value) : null)}
                   aria-invalid={!!ageError}
+                  aria-describedby="age-error"
                 />
-                {ageError && <p className="text-xs text-destructive mt-1">{ageError}</p>}
+                {ageError && <p id="age-error" className="text-xs text-destructive mt-1">{ageError}</p>}
               </div>
 
               <div>
                 <Label htmlFor="gender" className="text-sm font-medium text-foreground">Gender</Label>
                 <Select value={gender} onValueChange={(value) => setGender(value as "male" | "female")}>
-                  <SelectTrigger className="mt-1 text-sm"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                  <SelectTrigger id="gender" className="mt-1 text-sm"><SelectValue placeholder="Select gender" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
@@ -345,7 +363,7 @@ export default function Home() {
               <div>
                 <Label htmlFor="activity-level" className="text-sm font-medium text-foreground">Activity Level</Label>
                 <Select value={activityLevel} onValueChange={(value) => setActivityLevel(value as keyof typeof activityFactors)}>
-                  <SelectTrigger className="mt-1 text-sm"><SelectValue placeholder="Select activity level" /></SelectTrigger>
+                  <SelectTrigger id="activity-level" className="mt-1 text-sm"><SelectValue placeholder="Select activity level" /></SelectTrigger>
                   <SelectContent>
                     {Object.keys(activityFactors).map((level) => (
                       <SelectItem key={level} value={level}>{level}</SelectItem>
@@ -357,7 +375,7 @@ export default function Home() {
               <div>
                 <Label htmlFor="calorie-goal" className="text-sm font-medium text-foreground">Calorie Goal</Label>
                  <Select value={calorieGoal} onValueChange={(value) => setCalorieGoal(value as "lose" | "maintain" | "gain")}>
-                  <SelectTrigger className="mt-1 text-sm"><SelectValue placeholder="Select calorie goal" /></SelectTrigger>
+                  <SelectTrigger id="calorie-goal" className="mt-1 text-sm"><SelectValue placeholder="Select calorie goal" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="lose">Lose Weight</SelectItem>
                     <SelectItem value="maintain">Maintain Weight</SelectItem>
@@ -387,6 +405,7 @@ export default function Home() {
                     step={5}
                     onValueChange={(value) => setSurplusDeficitPercentage(value[0])}
                     className="mt-2"
+                    aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}
                   />
                   <p className="text-xs text-muted-foreground mt-1">Selected: {surplusDeficitPercentage}%</p>
                 </div>
@@ -401,7 +420,7 @@ export default function Home() {
               </Button>
             </div>
 
-            {maintenanceCalories && !isCalculating && (
+            {maintenanceCalories !== null && !isCalculating && (
               <div className="mt-8 space-y-6">
                 <CalorieCard
                   title={`Maintenance ⚖️`}
@@ -409,7 +428,7 @@ export default function Home() {
                   color="hsl(var(--bright-amber))"
                   description="Calories to maintain your current weight."
                 />
-                {calorieGoal === "gain" && calorieSurplus && (
+                {calorieGoal === "gain" && calorieSurplus !== null && (
                   <CalorieCard
                     title={`${calorieGoalLabelText} 🍔`}
                     calories={calorieSurplus}
@@ -417,7 +436,7 @@ export default function Home() {
                     description={`Target calories for gaining weight/muscle with a ${surplusDeficitPercentage}% surplus.`}
                   />
                 )}
-                {calorieGoal === "lose" && calorieDeficit && (
+                {calorieGoal === "lose" && calorieDeficit !== null && (
                   <CalorieCard
                     title={`${calorieGoalLabelText} 🏃‍♂️`}
                     calories={calorieDeficit}
@@ -426,7 +445,7 @@ export default function Home() {
                   />
                 )}
 
-                {(protein || fat || carbs) && (
+                {(protein !== null || fat !== null || carbs !== null) && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
                     <CardHeader>
                       <CardTitle className="text-xl text-foreground">Macronutrient Breakdown</CardTitle>
@@ -440,7 +459,7 @@ export default function Home() {
                   </Card>
                 )}
 
-                {waterIntake && (
+                {waterIntake !== null && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
                     <CardHeader>
                       <CardTitle className="text-xl text-foreground">Daily Water Intake</CardTitle>
@@ -462,10 +481,10 @@ export default function Home() {
                         Would you like a sample Indian meal plan based on your {calorieGoalLabelText.toLowerCase()} calories?
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3">
-                        <Button onClick={handleGenerateMealPlan} className="gradient-button flex-1 py-2.5">
-                          Yes, Generate Meal Plan
+                        <Button onClick={handleGenerateMealPlan} className="gradient-button flex-1 py-2.5" disabled={isGeneratingMealPlan}>
+                          {isGeneratingMealPlan ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Yes, Generate Meal Plan"}
                         </Button>
-                        <Button variant="outline" onClick={() => setUserDeclinedMealPlan(true)} className="flex-1 py-2.5">
+                        <Button variant="outline" onClick={() => setUserDeclinedMealPlan(true)} className="flex-1 py-2.5" disabled={isGeneratingMealPlan}>
                           No, Thanks
                         </Button>
                       </div>
@@ -473,7 +492,7 @@ export default function Home() {
                   </Card>
                 )}
 
-                {isGeneratingMealPlan && (
+                {isGeneratingMealPlan && !generatedMealPlan && ( // Show this only if actively generating and no plan yet
                   <div className="mt-6 flex items-center justify-center p-6 rounded-2xl border-border bg-card">
                     <Loader2 className="mr-3 h-6 w-6 animate-spin text-primary" />
                     <p className="text-foreground">Generating your meal plan, please wait...</p>
@@ -490,13 +509,13 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {generatedMealPlan.dailyMealPlan.map((meal, index) => (
-                        <div key={index} className="border-b border-border pb-3 last:border-b-0 last:pb-0">
+                        <div key={meal.name + index} className="border-b border-border pb-3 last:border-b-0 last:pb-0">
                           <h4 className="font-semibold text-lg mb-2 capitalize" style={{ color: mealColors[index % mealColors.length]}}>
                             {meal.name} {meal.totalCalories ? `(~${meal.totalCalories} kcal)` : ''}
                           </h4>
                           <ul className="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
                             {meal.items.map((item, itemIndex) => (
-                              <li key={itemIndex}>
+                              <li key={item.name + itemIndex}>
                                 <span className="text-foreground font-medium">{item.name}:</span> {item.quantity} 
                                 {item.calories ? ` (~${item.calories} kcal)` : ''}
                               </li>
@@ -539,4 +558,3 @@ function CalorieCard({ title, calories, color, description }: CalorieCardProps) 
     </Card>
   );
 }
-

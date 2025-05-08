@@ -37,6 +37,7 @@ export type GenerateMealPlanOutput = z.infer<typeof GenerateMealPlanOutputSchema
 
 const generateMealPlanPrompt = ai.definePrompt({
   name: 'generateMealPlanPrompt',
+  model: 'googleai/gemini-1.5-flash-latest', // Explicitly set the model
   input: { schema: GenerateMealPlanInputSchema },
   output: { schema: GenerateMealPlanOutputSchema },
   prompt: `You are an expert nutritionist specializing in Indian cuisine.
@@ -78,8 +79,13 @@ const generateMealPlanFlow = ai.defineFlow(
     outputSchema: GenerateMealPlanOutputSchema,
   },
   async (input) => {
+    // Log input for debugging
+    console.log('Generating meal plan for input:', JSON.stringify(input, null, 2));
+    
     const { output } = await generateMealPlanPrompt(input);
+    
     if (!output) {
+      console.error('Meal plan generation failed: Model did not return valid output.');
       throw new Error('Failed to generate meal plan. The model did not return valid output.');
     }
     // Basic validation for the presence of core meals
@@ -87,12 +93,21 @@ const generateMealPlanFlow = ai.defineFlow(
     if (!mealNames.includes('breakfast') || !mealNames.includes('lunch') || !mealNames.includes('dinner')) {
         // This is a soft check, ideally schema validation from Zod handles most of it.
         // If LLM misses core meals, it's an issue.
-        console.warn("Generated meal plan might be missing core meals (Breakfast, Lunch, Dinner).");
+        console.warn("Generated meal plan might be missing core meals (Breakfast, Lunch, Dinner). Output:", JSON.stringify(output, null, 2));
     }
     return output;
   }
 );
 
 export async function generateMealPlan(input: GenerateMealPlanInput): Promise<GenerateMealPlanOutput> {
-  return generateMealPlanFlow(input);
+  try {
+    return await generateMealPlanFlow(input);
+  } catch (error) {
+    // Log the error on the server side as well
+    console.error('Error in generateMealPlan server function:', error);
+    // Re-throw the error so it can be caught by the client-side caller
+    // and display an appropriate message to the user.
+    // Consider wrapping in a more specific error type if needed.
+    throw error; 
+  }
 }
