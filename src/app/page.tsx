@@ -23,11 +23,31 @@ const activityFactors = {
   Sedentary: 1.2,
   "Lightly Active": 1.375,
   "Moderately Active": 1.55,
-  Active: 1.725,
-  "Very Active": 1.9,
+  "Very Active": 1.725,
+  "Extremely Active": 1.9,
 };
 
-const calculateBMR = (weight: number, height: number, age: number, gender: "male" | "female") => {
+type ActivityLevel = keyof typeof activityFactors;
+type Gender = "male" | "female";
+type CalorieGoal = "lose" | "maintain" | "gain";
+type DietType = "balanced" | "highProtein";
+
+
+const calculateBMR = (
+  weight: number,
+  height: number,
+  age: number,
+  gender: Gender,
+  bodyFat?: number | null
+): number => {
+  // Katch-McArdle formula if valid body fat percentage is provided
+  if (bodyFat && bodyFat > 0 && bodyFat < 70 && weight > 0) {
+    const leanMass = weight * (1 - bodyFat / 100);
+    if (leanMass > 0) {
+      return 370 + 21.6 * leanMass;
+    }
+  }
+  // Mifflin-St Jeor Equation otherwise
   if (gender === "male") {
     return 10 * weight + 6.25 * height - 5 * age + 5;
   } else {
@@ -43,14 +63,18 @@ const calorieGoalLabels = {
 
 
 export default function Home() {
-  const [weight, setWeight] = useState<number | null>(70);
+  const [weight, setWeight] = useState<number | null>(86); // Updated example weight
   const [height, setHeight] = useState<number | null>(175);
   const [age, setAge] = useState<number | null>(30);
-  const [gender, setGender] = useState<"male" | "female">("male");
-  const [activityLevel, setActivityLevel] = useState<keyof typeof activityFactors>("Sedentary");
-  const [calorieGoal, setCalorieGoal] = useState<"lose" | "maintain" | "gain">("maintain");
-  const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(15);
+  const [gender, setGender] = useState<Gender>("male");
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>("Very Active");
+  const [calorieGoal, setCalorieGoal] = useState<CalorieGoal>("lose");
+  const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(25);
   
+  const [bodyFatPercentage, setBodyFatPercentage] = useState<number | null>(null);
+  const [dailyExerciseMinutes, setDailyExerciseMinutes] = useState<number | null>(0);
+  const [dietType, setDietType] = useState<DietType>("highProtein");
+
   const [maintenanceCalories, setMaintenanceCalories] = useState<number | null>(null);
   const [calorieSurplus, setCalorieSurplus] = useState<number | null>(null);
   const [calorieDeficit, setCalorieDeficit] = useState<number | null>(null);
@@ -66,11 +90,14 @@ export default function Home() {
   const [weightError, setWeightError] = useState<string | null>(null);
   const [heightError, setHeightError] = useState<string | null>(null);
   const [ageError, setAgeError] = useState<string | null>(null);
+  const [bodyFatError, setBodyFatError] = useState<string | null>(null);
+  const [exerciseMinutesError, setExerciseMinutesError] = useState<string | null>(null);
   
   const { toast } = useToast();
 
 
   useEffect(() => {
+    // Dark mode initialization
     const savedDarkMode = localStorage.getItem('darkMode');
     if (savedDarkMode) {
       const newDarkMode = savedDarkMode === 'true';
@@ -106,6 +133,9 @@ export default function Home() {
     if (!weight || weight <= 0) { setWeightError("Please enter a valid weight."); isValid = false; } else { setWeightError(null); }
     if (!height || height <= 0) { setHeightError("Please enter a valid height."); isValid = false; } else { setHeightError(null); }
     if (!age || age < 15 || age > 100) { setAgeError("Please enter a valid age (15-100)."); isValid = false; } else { setAgeError(null); }
+    if (bodyFatPercentage !== null && (bodyFatPercentage <= 0 || bodyFatPercentage >= 70) ) { setBodyFatError("Body fat % must be between 0 and 70."); isValid = false; } else { setBodyFatError(null); }
+    if (dailyExerciseMinutes !== null && dailyExerciseMinutes < 0) { setExerciseMinutesError("Exercise minutes cannot be negative."); isValid = false; } else { setExerciseMinutesError(null); }
+    
     return isValid;
   };
 
@@ -116,33 +146,76 @@ export default function Home() {
     }
     setIsCalculating(true);
 
+    // Warnings
+    if (calorieGoal === "lose" && surplusDeficitPercentage > 25) {
+      toast({
+        title: "Warning: Aggressive Deficit",
+        description: "Deficits greater than 25% can be hard to sustain and may risk muscle loss. Proceed with caution.",
+        variant: "destructive",
+        duration: 7000,
+      });
+    }
+
     setTimeout(() => {
       if (weight && height && age) {
-        const bmr = calculateBMR(weight, height, age, gender);
+        const bmr = calculateBMR(weight, height, age, gender, bodyFatPercentage);
         const maintenance = bmr * activityFactors[activityLevel];
         setMaintenanceCalories(Math.round(maintenance));
 
         let surplusMultiplier = 1 + surplusDeficitPercentage / 100;
         let deficitMultiplier = 1 - surplusDeficitPercentage / 100;
-        let surplus = maintenance * surplusMultiplier;
-        let deficit = maintenance * deficitMultiplier;
-        setCalorieSurplus(Math.round(surplus));
-        setCalorieDeficit(Math.round(deficit));
-
+        
         let targetCaloriesForMacros = maintenance;
-        if (calorieGoal === "gain") targetCaloriesForMacros = surplus;
-        if (calorieGoal === "lose") targetCaloriesForMacros = deficit;
+        if (calorieGoal === "gain") {
+          targetCaloriesForMacros = maintenance * surplusMultiplier;
+          setCalorieSurplus(Math.round(targetCaloriesForMacros));
+          setCalorieDeficit(null);
+        } else if (calorieGoal === "lose") {
+          targetCaloriesForMacros = maintenance * deficitMultiplier;
+          setCalorieDeficit(Math.round(targetCaloriesForMacros));
+          setCalorieSurplus(null);
+        } else { // Maintain
+            setCalorieSurplus(null);
+            setCalorieDeficit(null);
+        }
 
-        let proteinGrams = weight * (calorieGoal === "gain" ? 2 : 1.4);
-        setProtein(Math.round(proteinGrams));
-        const fatCalories = targetCaloriesForMacros * 0.25;
+
+        // Macronutrient Calculation
+        let proteinGrams: number;
+        let fatPercentageOfCalories: number;
+
+        if (dietType === "highProtein") {
+          proteinGrams = weight * 2.4; // 2.2-2.6g/kg, using 2.4 as example
+          fatPercentageOfCalories = 0.25; // 25% calories from fat
+        } else { // Balanced
+          proteinGrams = weight * 1.6; // 1.2-1.8g/kg, using 1.6
+          fatPercentageOfCalories = 0.30; // 30% calories from fat
+        }
+        
+        const roundedProteinGrams = Math.round(proteinGrams);
+        setProtein(roundedProteinGrams);
+
+        if ((activityLevel === "Very Active" || activityLevel === "Extremely Active") && dietType !== "highProtein") {
+          if (roundedProteinGrams / weight < 2.0) {
+            toast({
+              title: "Protein Intake Suggestion",
+              description: `For '${activityLevel}', a protein intake of at least 2g/kg body weight is often recommended. Consider the 'High Protein' diet type or adjusting your diet. Current: ~${(roundedProteinGrams/weight).toFixed(1)}g/kg.`,
+              duration: 10000,
+            });
+          }
+        }
+        
+        const fatCalories = targetCaloriesForMacros * fatPercentageOfCalories;
         const fatGrams = fatCalories / 9;
         setFat(Math.round(fatGrams));
-        const proteinCalories = proteinGrams * 4;
+        
+        const proteinCalories = roundedProteinGrams * 4;
         const carbsCalories = targetCaloriesForMacros - proteinCalories - fatCalories;
         const carbsGrams = carbsCalories / 4;
         setCarbs(Math.round(carbsGrams > 0 ? carbsGrams : 0));
-        const water = weight * 35;
+
+        // Water Intake Calculation
+        const water = (weight * 30) + ((dailyExerciseMinutes || 0) * 0.5);
         setWaterIntake(Math.round(water));
       }
       setIsCalculating(false);
@@ -168,10 +241,10 @@ export default function Home() {
             </div>
             
             <p className="mb-6 text-sm text-muted-foreground">
-              Enter your details to calculate daily calorie needs. Calculations use the Mifflin-St Jeor equation.
+              Enter your details to calculate daily calorie needs. Calculations use Mifflin-St Jeor or Katch-McArdle (if body fat % is provided).
             </p>
 
-            <div className="space-y-3"> {/* Reduced spacing */}
+            <div className="space-y-3">
               <div>
                 <Label htmlFor="weight" className="text-sm font-medium text-foreground">Weight (kg) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your current weight in kilograms.</p></TooltipContent></Tooltip></TooltipProvider></Label>
                 <Input type="number" id="weight" placeholder="e.g., 70" className="mt-1 text-sm" value={weight ?? ""} onChange={(e) => setWeight(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!weightError} aria-describedby="weight-error"/>
@@ -191,8 +264,14 @@ export default function Home() {
               </div>
 
               <div>
+                <Label htmlFor="bodyFat" className="text-sm font-medium text-foreground">Body Fat (%) (Optional) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>For Katch-McArdle BMR. Must be between 0-70. Leave blank if unsure.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="bodyFat" placeholder="e.g., 15" className="mt-1 text-sm" value={bodyFatPercentage ?? ""} onChange={(e) => setBodyFatPercentage(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!bodyFatError} aria-describedby="bodyfat-error"/>
+                {bodyFatError && <p id="bodyfat-error" className="text-xs text-destructive mt-1">{bodyFatError}</p>}
+              </div>
+
+              <div>
                 <Label htmlFor="gender" className="text-sm font-medium text-foreground">Gender</Label>
-                <Select value={gender} onValueChange={(value) => setGender(value as "male" | "female")}>
+                <Select value={gender} onValueChange={(value) => setGender(value as Gender)}>
                   <SelectTrigger id="gender" className="mt-1 text-sm"><SelectValue placeholder="Select gender" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
@@ -202,18 +281,24 @@ export default function Home() {
               </div>
 
               <div>
-                <Label htmlFor="activity-level" className="text-sm font-medium text-foreground">Activity Level <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Sedentary: little/no exercise. Lightly Active: light exercise 1-3 days/wk. Moderately Active: moderate exercise 3-5 days/wk. Active: hard exercise 6-7 days/wk. Very Active: very hard exercise/physical job.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Select value={activityLevel} onValueChange={(value) => setActivityLevel(value as keyof typeof activityFactors)}>
+                <Label htmlFor="activity-level" className="text-sm font-medium text-foreground">Activity Level <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Sedentary: little/no exercise. Lightly Active: light exercise 1-3 days/wk. Moderately Active: moderate exercise 3-5 days/wk. Very Active: hard exercise 3-5 days/wk. Extremely Active: very hard exercise 6-7 days/wk or physical job.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Select value={activityLevel} onValueChange={(value) => setActivityLevel(value as ActivityLevel)}>
                   <SelectTrigger id="activity-level" className="mt-1 text-sm"><SelectValue placeholder="Select activity level" /></SelectTrigger>
                   <SelectContent>
                     {Object.keys(activityFactors).map((level) => (<SelectItem key={level} value={level}>{level}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="exercise-minutes" className="text-sm font-medium text-foreground">Daily Exercise Minutes <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Approx. minutes of intentional exercise per day. Used for personalized water intake.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="exercise-minutes" placeholder="e.g., 60" className="mt-1 text-sm" value={dailyExerciseMinutes ?? ""} onChange={(e) => setDailyExerciseMinutes(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!exerciseMinutesError} aria-describedby="exercise-minutes-error"/>
+                {exerciseMinutesError && <p id="exercise-minutes-error" className="text-xs text-destructive mt-1">{exerciseMinutesError}</p>}
+              </div>
               
               <div>
                 <Label htmlFor="calorie-goal" className="text-sm font-medium text-foreground">Calorie Goal</Label>
-                 <Select value={calorieGoal} onValueChange={(value) => setCalorieGoal(value as "lose" | "maintain" | "gain")}>
+                 <Select value={calorieGoal} onValueChange={(value) => setCalorieGoal(value as CalorieGoal)}>
                   <SelectTrigger id="calorie-goal" className="mt-1 text-sm"><SelectValue placeholder="Select calorie goal" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="lose">Lose Weight</SelectItem>
@@ -225,27 +310,41 @@ export default function Home() {
 
               {calorieGoal !== "maintain" && (
                 <div>
-                  <Label htmlFor="surplus-deficit" className="text-sm font-medium text-foreground">{calorieGoal === "gain" ? "Surplus" : "Deficit"} (%) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Percentage to {calorieGoal === "gain" ? "add to" : "subtract from"} maintenance calories (10-25%).</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                  <Slider id="surplus-deficit" defaultValue={[surplusDeficitPercentage]} max={25} min={10} step={5} onValueChange={(value) => setSurplusDeficitPercentage(value[0])} className="mt-2" aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}/>
+                  <Label htmlFor="surplus-deficit" className="text-sm font-medium text-foreground">{calorieGoal === "gain" ? "Surplus" : "Deficit"} (%) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Percentage to {calorieGoal === "gain" ? "add to" : "subtract from"} maintenance calories (10-30%). Deficits >25% may risk muscle loss.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                  <Slider id="surplus-deficit" defaultValue={[surplusDeficitPercentage]} max={30} min={10} step={5} onValueChange={(value) => setSurplusDeficitPercentage(value[0])} className="mt-2" aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}/>
                   <p className="text-xs text-muted-foreground mt-1">Selected: {surplusDeficitPercentage}%</p>
                 </div>
               )}
+
+              <div>
+                <Label htmlFor="diet-type" className="text-sm font-medium text-foreground">Diet Type <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Adjusts macronutrient recommendations. 'High Protein' is often preferred for fat loss or muscle gain.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Select value={dietType} onValueChange={(value) => setDietType(value as DietType)}>
+                  <SelectTrigger id="diet-type" className="mt-1 text-sm"><SelectValue placeholder="Select diet type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="balanced">Balanced</SelectItem>
+                    <SelectItem value="highProtein">High Protein</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               
-              <Button className="gradient-button w-full text-base py-2.5 mt-4" onClick={calculateCalories} disabled={isCalculating}> {/* Adjusted padding and margin */}
+              <Button className="gradient-button w-full text-base py-2.5 mt-4" onClick={calculateCalories} disabled={isCalculating}>
                 {isCalculating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculating...</> : "Calculate Calories"}
               </Button>
             </div>
 
             {maintenanceCalories !== null && !isCalculating && (
-              <div className="mt-6 space-y-4"> {/* Adjusted spacing */}
+              <div className="mt-6 space-y-4">
                 <CalorieCard title={`Maintenance ⚖️`} calories={maintenanceCalories} color="hsl(var(--bright-amber))" description="Calories to maintain your current weight."/>
                 {calorieGoal === "gain" && calorieSurplus !== null && (<CalorieCard title={`${calorieGoalLabelText} 🍔`} calories={calorieSurplus} color="hsl(var(--turquoise))" description={`Target for weight/muscle gain with ${surplusDeficitPercentage}% surplus.`}/>)}
                 {calorieGoal === "lose" && calorieDeficit !== null && (<CalorieCard title={`${calorieGoalLabelText} 🏃‍♂️`} calories={calorieDeficit} color="hsl(var(--coral-red))" description={`Target for weight loss with ${surplusDeficitPercentage}% deficit.`}/>)}
 
                 {(protein !== null || fat !== null || carbs !== null) && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
-                    <CardHeader><CardTitle className="text-lg text-foreground">Macronutrient Breakdown</CardTitle><CardDescription className="text-xs">Approx. targets for {calorieGoal} goal. <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Protein: {calorieGoal === 'gain' ? '1.6-2.2g/kg' : '1.2-1.6g/kg'}. Fats: ~20-30% of calories. Carbs: Remainder.</p></TooltipContent></Tooltip></TooltipProvider></CardDescription></CardHeader>
-                    <CardContent className="space-y-1 text-sm"> {/* Adjusted spacing */}
+                    <CardHeader>
+                        <CardTitle className="text-lg text-foreground">Macronutrient Breakdown ({dietType === "highProtein" ? "High Protein" : "Balanced"})</CardTitle>
+                        <CardDescription className="text-xs">Approx. targets for your {calorieGoal} goal. <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>{dietType === 'highProtein' ? 'Protein: ~2.4g/kg, Fat: ~25% cals' : 'Protein: ~1.6g/kg, Fat: ~30% cals'}. Carbs: Remainder.</p></TooltipContent></Tooltip></TooltipProvider></CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-sm">
                       <p><strong className="text-foreground">Protein:</strong> {protein}g</p>
                       <p><strong className="text-foreground">Fat:</strong> {fat}g</p>
                       <p><strong className="text-foreground">Carbs:</strong> {carbs}g</p>
@@ -255,7 +354,7 @@ export default function Home() {
 
                 {waterIntake !== null && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
-                    <CardHeader><CardTitle className="text-lg text-foreground">Daily Water Intake <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Based on ~35ml per kg of body weight.</p></TooltipContent></Tooltip></TooltipProvider></CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-lg text-foreground">Daily Water Intake <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Based on ~30ml/kg body weight + 0.5ml per minute of exercise.</p></TooltipContent></Tooltip></TooltipProvider></CardTitle></CardHeader>
                     <CardContent>
                       <p className="text-lg font-semibold" style={{color: "hsl(var(--primary))"}}>{waterIntake} ml</p>
                       <p className="text-xs text-muted-foreground">Approximate daily hydration goal.</p>
@@ -280,18 +379,19 @@ interface CalorieCardProps {
 
 function CalorieCard({ title, calories, color, description }: CalorieCardProps) {
   return (
-    <Card className="shadow-lg rounded-2xl border-border overflow-hidden transition-all hover:shadow-xl animate-fadeIn"> {/* Added animation */}
+    <Card className="shadow-lg rounded-2xl border-border overflow-hidden transition-all hover:shadow-xl animate-fadeIn">
       <CardHeader>
-        <CardTitle className="text-lg text-foreground">{title}</CardTitle> {/* Adjusted font size */}
+        <CardTitle className="text-lg text-foreground">{title}</CardTitle>
          {description && <CardDescription className="text-xs">{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-bold" style={{ color: color }}> {/* Adjusted font size */}
+        <p className="text-3xl font-bold" style={{ color: color }}>
           {calories}
         </p>
-        <p className="text-xs text-muted-foreground" style={{ color: color, opacity: 0.8 }}>Calories/day</p> {/* Adjusted font size */}
+        <p className="text-xs text-muted-foreground" style={{ color: color, opacity: 0.8 }}>Calories/day</p>
       </CardContent>
     </Card>
   );
 }
 
+    
