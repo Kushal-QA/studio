@@ -28,9 +28,8 @@ const activityFactors = {
 };
 
 type ActivityLevel = keyof typeof activityFactors;
-type Gender = "male" | "female";
+type Gender = "male" | "female" | "other";
 type CalorieGoal = "lose" | "maintain" | "gain";
-type DietType = "balanced" | "highProtein";
 
 
 const calculateBMR = (
@@ -48,9 +47,9 @@ const calculateBMR = (
     }
   }
   // Mifflin-St Jeor Equation otherwise
-  if (gender === "male") {
+  if (gender === "male" || gender === "other") { // Default to male for 'other' or could be averaged/configurable
     return 10 * weight + 6.25 * height - 5 * age + 5;
-  } else {
+  } else { // female
     return 10 * weight + 6.25 * height - 5 * age - 161;
   }
 };
@@ -63,7 +62,7 @@ const calorieGoalLabels = {
 
 
 export default function Home() {
-  const [weight, setWeight] = useState<number | null>(86); // Updated example weight
+  const [weight, setWeight] = useState<number | null>(86); 
   const [height, setHeight] = useState<number | null>(175);
   const [age, setAge] = useState<number | null>(30);
   const [gender, setGender] = useState<Gender>("male");
@@ -72,12 +71,11 @@ export default function Home() {
   const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(25);
   
   const [bodyFatPercentage, setBodyFatPercentage] = useState<number | null>(null);
-  const [dailyExerciseMinutes, setDailyExerciseMinutes] = useState<number | null>(0);
-  const [dietType, setDietType] = useState<DietType>("highProtein");
+  const [dailyExerciseMinutes, setDailyExerciseMinutes] = useState<number | null>(60);
+
 
   const [maintenanceCalories, setMaintenanceCalories] = useState<number | null>(null);
-  const [calorieSurplus, setCalorieSurplus] = useState<number | null>(null);
-  const [calorieDeficit, setCalorieDeficit] = useState<number | null>(null);
+  const [targetCalories, setTargetCalories] = useState<number | null>(null);
   
   const [protein, setProtein] = useState<number | null>(null);
   const [fat, setFat] = useState<number | null>(null);
@@ -99,20 +97,17 @@ export default function Home() {
   useEffect(() => {
     // Dark mode initialization
     const savedDarkMode = localStorage.getItem('darkMode');
+    let initialDarkMode = false;
     if (savedDarkMode) {
-      const newDarkMode = savedDarkMode === 'true';
-      setDarkMode(newDarkMode);
-      if (newDarkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      initialDarkMode = savedDarkMode === 'true';
+    } else if (typeof window !== 'undefined') {
+      initialDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    setDarkMode(initialDarkMode);
+    if (initialDarkMode) {
+      document.documentElement.classList.add('dark');
     } else {
-        if (typeof window !== 'undefined') {
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setDarkMode(prefersDark);
-            if (prefersDark) document.documentElement.classList.add('dark');
-        }
+      document.documentElement.classList.remove('dark');
     }
   }, []);
   
@@ -130,18 +125,24 @@ export default function Home() {
 
   const validateInputs = () => {
     let isValid = true;
-    if (!weight || weight <= 0) { setWeightError("Please enter a valid weight."); isValid = false; } else { setWeightError(null); }
-    if (!height || height <= 0) { setHeightError("Please enter a valid height."); isValid = false; } else { setHeightError(null); }
-    if (!age || age < 15 || age > 100) { setAgeError("Please enter a valid age (15-100)."); isValid = false; } else { setAgeError(null); }
-    if (bodyFatPercentage !== null && (bodyFatPercentage <= 0 || bodyFatPercentage >= 70) ) { setBodyFatError("Body fat % must be between 0 and 70."); isValid = false; } else { setBodyFatError(null); }
-    if (dailyExerciseMinutes !== null && dailyExerciseMinutes < 0) { setExerciseMinutesError("Exercise minutes cannot be negative."); isValid = false; } else { setExerciseMinutesError(null); }
+    setWeightError(null);
+    setHeightError(null);
+    setAgeError(null);
+    setBodyFatError(null);
+    setExerciseMinutesError(null);
+
+    if (!weight || weight <= 0) { setWeightError("Please enter a valid weight > 0 kg."); isValid = false; }
+    if (!height || height <= 0) { setHeightError("Please enter a valid height > 0 cm."); isValid = false; }
+    if (!age || age < 15 || age > 100) { setAgeError("Please enter a valid age (15-100)."); isValid = false; }
+    if (bodyFatPercentage !== null && (bodyFatPercentage <= 0 || bodyFatPercentage >= 70) ) { setBodyFatError("Body fat % must be between 0 and 70 if provided."); isValid = false; }
+    if (dailyExerciseMinutes !== null && dailyExerciseMinutes < 0) { setExerciseMinutesError("Exercise minutes cannot be negative."); isValid = false; }
     
     return isValid;
   };
 
   const calculateCalories = () => {
     if (!validateInputs()) {
-      toast({ title: "Error", description: "Please correct the invalid fields.", variant: "destructive" });
+      toast({ title: "Input Error", description: "Please correct the highlighted fields.", variant: "destructive" });
       return;
     }
     setIsCalculating(true);
@@ -150,11 +151,20 @@ export default function Home() {
     if (calorieGoal === "lose" && surplusDeficitPercentage > 25) {
       toast({
         title: "Warning: Aggressive Deficit",
-        description: "Deficits greater than 25% can be hard to sustain and may risk muscle loss. Proceed with caution.",
+        description: `A ${surplusDeficitPercentage}% deficit can be hard to sustain and may risk muscle loss. Protein intake of at least 2g/kg body weight is recommended. Proceed with caution.`,
         variant: "destructive",
-        duration: 7000,
+        duration: 8000,
       });
     }
+    if (calorieGoal === "gain" && surplusDeficitPercentage > 20) {
+        toast({
+            title: "Warning: Aggressive Surplus",
+            description: `A ${surplusDeficitPercentage}% surplus may lead to excessive fat gain. Monitor progress closely.`,
+            variant: "destructive",
+            duration: 8000,
+        });
+    }
+
 
     setTimeout(() => {
       if (weight && height && age) {
@@ -162,60 +172,43 @@ export default function Home() {
         const maintenance = bmr * activityFactors[activityLevel];
         setMaintenanceCalories(Math.round(maintenance));
 
-        let surplusMultiplier = 1 + surplusDeficitPercentage / 100;
-        let deficitMultiplier = 1 - surplusDeficitPercentage / 100;
-        
-        let targetCaloriesForMacros = maintenance;
+        let currentTargetCalories = maintenance;
         if (calorieGoal === "gain") {
-          targetCaloriesForMacros = maintenance * surplusMultiplier;
-          setCalorieSurplus(Math.round(targetCaloriesForMacros));
-          setCalorieDeficit(null);
+          currentTargetCalories = maintenance * (1 + surplusDeficitPercentage / 100);
         } else if (calorieGoal === "lose") {
-          targetCaloriesForMacros = maintenance * deficitMultiplier;
-          setCalorieDeficit(Math.round(targetCaloriesForMacros));
-          setCalorieSurplus(null);
-        } else { // Maintain
-            setCalorieSurplus(null);
-            setCalorieDeficit(null);
+          currentTargetCalories = maintenance * (1 - surplusDeficitPercentage / 100);
         }
+        setTargetCalories(Math.round(currentTargetCalories));
 
 
-        // Macronutrient Calculation
-        let proteinGrams: number;
-        let fatPercentageOfCalories: number;
-
-        if (dietType === "highProtein") {
-          proteinGrams = weight * 2.4; // 2.2-2.6g/kg, using 2.4 as example
-          fatPercentageOfCalories = 0.25; // 25% calories from fat
-        } else { // Balanced
-          proteinGrams = weight * 1.6; // 1.2-1.8g/kg, using 1.6
-          fatPercentageOfCalories = 0.30; // 30% calories from fat
-        }
+        // Macronutrient Calculation (Defaulting to a high-protein approach)
+        let proteinGrams: number = weight * 2.4; // 2.4g/kg (High Protein)
+        let fatPercentageOfCalories: number = 0.25; // 25% calories from fat (High Protein)
         
         const roundedProteinGrams = Math.round(proteinGrams);
         setProtein(roundedProteinGrams);
 
-        if ((activityLevel === "Very Active" || activityLevel === "Extremely Active") && dietType !== "highProtein") {
+        if ((activityLevel === "Very Active" || activityLevel === "Extremely Active")) {
           if (roundedProteinGrams / weight < 2.0) {
             toast({
               title: "Protein Intake Suggestion",
-              description: `For '${activityLevel}', a protein intake of at least 2g/kg body weight is often recommended. Consider the 'High Protein' diet type or adjusting your diet. Current: ~${(roundedProteinGrams/weight).toFixed(1)}g/kg.`,
+              description: `For '${activityLevel}', a protein intake of at least 2g/kg body weight is often recommended. Current: ~${(roundedProteinGrams/weight).toFixed(1)}g/kg.`,
               duration: 10000,
             });
           }
         }
         
-        const fatCalories = targetCaloriesForMacros * fatPercentageOfCalories;
+        const fatCalories = currentTargetCalories * fatPercentageOfCalories;
         const fatGrams = fatCalories / 9;
         setFat(Math.round(fatGrams));
         
         const proteinCalories = roundedProteinGrams * 4;
-        const carbsCalories = targetCaloriesForMacros - proteinCalories - fatCalories;
+        const carbsCalories = currentTargetCalories - proteinCalories - fatCalories;
         const carbsGrams = carbsCalories / 4;
         setCarbs(Math.round(carbsGrams > 0 ? carbsGrams : 0));
 
         // Water Intake Calculation
-        const water = (weight * 30) + ((dailyExerciseMinutes || 0) * 0.5);
+        const water = (weight * 30) + ((dailyExerciseMinutes || 0) * 0.5); // Using default 0 for exercise if null
         setWaterIntake(Math.round(water));
       }
       setIsCalculating(false);
@@ -225,6 +218,7 @@ export default function Home() {
 
 
   const calorieGoalLabelText = calorieGoal === "maintain" ? calorieGoalLabels.maintain() : calorieGoalLabels[calorieGoal](surplusDeficitPercentage);
+  const formulaUsed = bodyFatPercentage && bodyFatPercentage > 0 && bodyFatPercentage < 70 ? "Katch-McArdle" : "Mifflin-St Jeor";
 
   return (
     <div className={`min-h-screen py-6 flex flex-col justify-center sm:py-12`}>
@@ -241,31 +235,31 @@ export default function Home() {
             </div>
             
             <p className="mb-6 text-sm text-muted-foreground">
-              Enter your details to calculate daily calorie needs. Calculations use Mifflin-St Jeor or Katch-McArdle (if body fat % is provided).
+              Enter your details to calculate daily calorie needs. Calculations use {formulaUsed}.
             </p>
 
             <div className="space-y-3">
               <div>
-                <Label htmlFor="weight" className="text-sm font-medium text-foreground">Weight (kg) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your current weight in kilograms.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Input type="number" id="weight" placeholder="e.g., 70" className="mt-1 text-sm" value={weight ?? ""} onChange={(e) => setWeight(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!weightError} aria-describedby="weight-error"/>
+                <Label htmlFor="weight" className="text-sm font-medium text-foreground">Weight (kg) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your current weight in kilograms. Must be &gt; 0.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="weight" placeholder="e.g., 70" className={`mt-1 text-sm ${weightError ? 'border-destructive ring-destructive' : ''}`} value={weight ?? ""} onChange={(e) => setWeight(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!weightError} aria-describedby="weight-error"/>
                 {weightError && <p id="weight-error" className="text-xs text-destructive mt-1">{weightError}</p>}
               </div>
 
               <div>
-                <Label htmlFor="height" className="text-sm font-medium text-foreground">Height (cm) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your height in centimeters.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Input type="number" id="height" placeholder="e.g., 175" className="mt-1 text-sm" value={height ?? ""} onChange={(e) => setHeight(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!heightError} aria-describedby="height-error"/>
+                <Label htmlFor="height" className="text-sm font-medium text-foreground">Height (cm) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your height in centimeters. Must be &gt; 0.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="height" placeholder="e.g., 175" className={`mt-1 text-sm ${heightError ? 'border-destructive ring-destructive' : ''}`} value={height ?? ""} onChange={(e) => setHeight(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!heightError} aria-describedby="height-error"/>
                 {heightError && <p id="height-error" className="text-xs text-destructive mt-1">{heightError}</p>}
               </div>
 
               <div>
                 <Label htmlFor="age" className="text-sm font-medium text-foreground">Age (years) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Your age in years (15-100).</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Input type="number" id="age" placeholder="e.g., 30" className="mt-1 text-sm" value={age ?? ""} onChange={(e) => setAge(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!ageError} aria-describedby="age-error"/>
+                <Input type="number" id="age" placeholder="e.g., 30" className={`mt-1 text-sm ${ageError ? 'border-destructive ring-destructive' : ''}`} value={age ?? ""} onChange={(e) => setAge(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!ageError} aria-describedby="age-error"/>
                 {ageError && <p id="age-error" className="text-xs text-destructive mt-1">{ageError}</p>}
               </div>
 
               <div>
-                <Label htmlFor="bodyFat" className="text-sm font-medium text-foreground">Body Fat (%) (Optional) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>For Katch-McArdle BMR. Must be between 0-70. Leave blank if unsure.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Input type="number" id="bodyFat" placeholder="e.g., 15" className="mt-1 text-sm" value={bodyFatPercentage ?? ""} onChange={(e) => setBodyFatPercentage(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!bodyFatError} aria-describedby="bodyfat-error"/>
+                <Label htmlFor="bodyFat" className="text-sm font-medium text-foreground">Body Fat (%) (Optional) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>For Katch-McArdle BMR. Must be between 0-70. Leave blank if unsure to use Mifflin-St Jeor.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="bodyFat" placeholder="e.g., 15" className={`mt-1 text-sm ${bodyFatError ? 'border-destructive ring-destructive' : ''}`} value={bodyFatPercentage ?? ""} onChange={(e) => setBodyFatPercentage(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!bodyFatError} aria-describedby="bodyfat-error"/>
                 {bodyFatError && <p id="bodyfat-error" className="text-xs text-destructive mt-1">{bodyFatError}</p>}
               </div>
 
@@ -276,6 +270,7 @@ export default function Home() {
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -291,8 +286,8 @@ export default function Home() {
               </div>
 
               <div>
-                <Label htmlFor="exercise-minutes" className="text-sm font-medium text-foreground">Daily Exercise Minutes <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Approx. minutes of intentional exercise per day. Used for personalized water intake.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Input type="number" id="exercise-minutes" placeholder="e.g., 60" className="mt-1 text-sm" value={dailyExerciseMinutes ?? ""} onChange={(e) => setDailyExerciseMinutes(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!exerciseMinutesError} aria-describedby="exercise-minutes-error"/>
+                <Label htmlFor="exercise-minutes" className="text-sm font-medium text-foreground">Daily Exercise Minutes <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Approx. minutes of intentional exercise per day. Used for personalized water intake. Cannot be negative.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                <Input type="number" id="exercise-minutes" placeholder="e.g., 60" className={`mt-1 text-sm ${exerciseMinutesError ? 'border-destructive ring-destructive' : ''}`} value={dailyExerciseMinutes ?? ""} onChange={(e) => setDailyExerciseMinutes(e.target.value ? parseFloat(e.target.value) : null)} aria-invalid={!!exerciseMinutesError} aria-describedby="exercise-minutes-error"/>
                 {exerciseMinutesError && <p id="exercise-minutes-error" className="text-xs text-destructive mt-1">{exerciseMinutesError}</p>}
               </div>
               
@@ -310,39 +305,40 @@ export default function Home() {
 
               {calorieGoal !== "maintain" && (
                 <div>
-                  <Label htmlFor="surplus-deficit" className="text-sm font-medium text-foreground">{calorieGoal === "gain" ? "Surplus" : "Deficit"} (%) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Percentage to {calorieGoal === "gain" ? "add to" : "subtract from"} maintenance calories (10-30%). Deficits >25% may risk muscle loss.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                  <Slider id="surplus-deficit" defaultValue={[surplusDeficitPercentage]} max={30} min={10} step={5} onValueChange={(value) => setSurplusDeficitPercentage(value[0])} className="mt-2" aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}/>
+                  <Label htmlFor="surplus-deficit" className="text-sm font-medium text-foreground">{calorieGoal === "gain" ? "Surplus" : "Deficit"} (%) <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Percentage to {calorieGoal === "gain" ? "add to" : "subtract from"} maintenance calories (10-30%). Aggressive {calorieGoal === 'gain' ? 'surpluses (>20%) may lead to more fat gain' : 'deficits (>25%) may risk muscle loss'}.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                  <Slider 
+                    id="surplus-deficit" 
+                    value={[surplusDeficitPercentage]} 
+                    max={30} 
+                    min={10} 
+                    step={5} 
+                    onValueChange={(value) => setSurplusDeficitPercentage(value[0])} 
+                    className="mt-2" 
+                    aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}
+                  />
                   <p className="text-xs text-muted-foreground mt-1">Selected: {surplusDeficitPercentage}%</p>
                 </div>
               )}
-
-              <div>
-                <Label htmlFor="diet-type" className="text-sm font-medium text-foreground">Diet Type <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-top text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Adjusts macronutrient recommendations. 'High Protein' is often preferred for fat loss or muscle gain.</p></TooltipContent></Tooltip></TooltipProvider></Label>
-                <Select value={dietType} onValueChange={(value) => setDietType(value as DietType)}>
-                  <SelectTrigger id="diet-type" className="mt-1 text-sm"><SelectValue placeholder="Select diet type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="balanced">Balanced</SelectItem>
-                    <SelectItem value="highProtein">High Protein</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               
               <Button className="gradient-button w-full text-base py-2.5 mt-4" onClick={calculateCalories} disabled={isCalculating}>
                 {isCalculating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculating...</> : "Calculate Calories"}
               </Button>
             </div>
 
-            {maintenanceCalories !== null && !isCalculating && (
+            {maintenanceCalories !== null && targetCalories !== null && !isCalculating && (
               <div className="mt-6 space-y-4">
                 <CalorieCard title={`Maintenance ⚖️`} calories={maintenanceCalories} color="hsl(var(--bright-amber))" description="Calories to maintain your current weight."/>
-                {calorieGoal === "gain" && calorieSurplus !== null && (<CalorieCard title={`${calorieGoalLabelText} 🍔`} calories={calorieSurplus} color="hsl(var(--turquoise))" description={`Target for weight/muscle gain with ${surplusDeficitPercentage}% surplus.`}/>)}
-                {calorieGoal === "lose" && calorieDeficit !== null && (<CalorieCard title={`${calorieGoalLabelText} 🏃‍♂️`} calories={calorieDeficit} color="hsl(var(--coral-red))" description={`Target for weight loss with ${surplusDeficitPercentage}% deficit.`}/>)}
+                
+                {calorieGoal === "gain" && (<CalorieCard title={`${calorieGoalLabelText} 🍔`} calories={targetCalories} color="hsl(var(--turquoise))" description={`Target for weight/muscle gain with ${surplusDeficitPercentage}% surplus.`}/>)}
+                {calorieGoal === "lose" && (<CalorieCard title={`${calorieGoalLabelText} 🏃‍♂️`} calories={targetCalories} color="hsl(var(--coral-red))" description={`Target for weight loss with ${surplusDeficitPercentage}% deficit.`}/>)}
+                {calorieGoal === "maintain" && (<CalorieCard title={`${calorieGoalLabelText} ⚖️`} calories={targetCalories} color="hsl(var(--bright-amber))" description={`Target to maintain your current weight.`}/>)}
 
-                {(protein !== null || fat !== null || carbs !== null) && (
+
+                {(protein !== null && fat !== null && carbs !== null) && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
                     <CardHeader>
-                        <CardTitle className="text-lg text-foreground">Macronutrient Breakdown ({dietType === "highProtein" ? "High Protein" : "Balanced"})</CardTitle>
-                        <CardDescription className="text-xs">Approx. targets for your {calorieGoal} goal. <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>{dietType === 'highProtein' ? 'Protein: ~2.4g/kg, Fat: ~25% cals' : 'Protein: ~1.6g/kg, Fat: ~30% cals'}. Carbs: Remainder.</p></TooltipContent></Tooltip></TooltipProvider></CardDescription>
+                        <CardTitle className="text-lg text-foreground">Macronutrient Breakdown</CardTitle>
+                        <CardDescription className="text-xs">Approx. targets for your {calorieGoal} goal (High Protein approach). <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Protein: ~2.4g/kg, Fat: ~25% cals. Carbs: Remainder.</p></TooltipContent></Tooltip></TooltipProvider></CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-1 text-sm">
                       <p><strong className="text-foreground">Protein:</strong> {protein}g</p>
@@ -354,7 +350,7 @@ export default function Home() {
 
                 {waterIntake !== null && (
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
-                    <CardHeader><CardTitle className="text-lg text-foreground">Daily Water Intake <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Based on ~30ml/kg body weight + 0.5ml per minute of exercise.</p></TooltipContent></Tooltip></TooltipProvider></CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-lg text-foreground">Daily Water Intake <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3 w-3 inline-block ml-1 align-bottom text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Based on ~30ml/kg body weight + 0.5ml per minute of exercise ({dailyExerciseMinutes || 0} min).</p></TooltipContent></Tooltip></TooltipProvider></CardTitle></CardHeader>
                     <CardContent>
                       <p className="text-lg font-semibold" style={{color: "hsl(var(--primary))"}}>{waterIntake} ml</p>
                       <p className="text-xs text-muted-foreground">Approximate daily hydration goal.</p>
@@ -393,5 +389,3 @@ function CalorieCard({ title, calories, color, description }: CalorieCardProps) 
     </Card>
   );
 }
-
-    
