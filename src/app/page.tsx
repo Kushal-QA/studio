@@ -24,7 +24,7 @@ const activityFactors = {
   "Lightly Active": 1.375,
   "Moderately Active": 1.55,
   "Very Active": 1.725,
-  "Extremely Active": 1.9, // Renamed from "Extra Active" to match industry standard
+  "Extremely Active": 1.9,
 };
 
 type ActivityLevel = keyof typeof activityFactors;
@@ -63,16 +63,16 @@ const calorieGoalLabels = {
 
 
 export default function Home() {
-  const [weight, setWeight] = useState<number | null>(86); 
-  const [height, setHeight] = useState<number | null>(175);
-  const [age, setAge] = useState<number | null>(30);
+  const [weight, setWeight] = useState<number | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  const [age, setAge] = useState<number | null>(null);
   const [gender, setGender] = useState<Gender>("male");
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>("Very Active");
-  const [calorieGoal, setCalorieGoal] = useState<CalorieGoal>("lose");
-  const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(25);
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>("Sedentary");
+  const [calorieGoal, setCalorieGoal] = useState<CalorieGoal>("maintain");
+  const [surplusDeficitPercentage, setSurplusDeficitPercentage] = useState<number>(15); // Defaulted to a common moderate value
   
   const [bodyFatPercentage, setBodyFatPercentage] = useState<number | null>(null);
-  const [dailyExerciseMinutes, setDailyExerciseMinutes] = useState<number | null>(60);
+  const [dailyExerciseMinutes, setDailyExerciseMinutes] = useState<number | null>(null);
 
 
   const [maintenanceCalories, setMaintenanceCalories] = useState<number | null>(null);
@@ -142,9 +142,6 @@ export default function Home() {
     }
     setIsCalculating(true);
 
-    // Warnings for deficit/surplus are now handled directly under the slider.
-    // Toast warnings removed from here to avoid redundancy.
-
     setTimeout(() => {
       if (weight && height && age) {
         const bmr = calculateBMR(weight, height, age, gender, bodyFatPercentage);
@@ -159,11 +156,6 @@ export default function Home() {
         }
         setTargetCalories(Math.round(currentTargetCalories));
 
-
-        // Macronutrient Calculation (High Protein Default as per previous logic)
-        // Protein: 2.2-2.6g/kg for weight loss/muscle preservation. Let's use 2.4g/kg as a default.
-        // Fat: 20-30% of total calories. Let's use 25%.
-        // Carbs: Remainder.
         let proteinGrams: number = weight * 2.4; 
         let fatPercentageOfCalories: number = 0.25; 
         
@@ -171,12 +163,14 @@ export default function Home() {
         setProtein(roundedProteinGrams);
 
         if ((activityLevel === "Very Active" || activityLevel === "Extremely Active") && calorieGoal === "lose") {
-          if (roundedProteinGrams / weight < 2.0) { // Check if calculated protein is high enough for active individuals in deficit
-            toast({
-              title: "Protein Intake Suggestion",
-              description: `For '${activityLevel}' and weight loss, a protein intake of at least 2.0-2.4g/kg body weight is often recommended to preserve muscle. Current: ~${(roundedProteinGrams/weight).toFixed(1)}g/kg. Consider adjusting if muscle preservation is key.`,
-              duration: 12000,
-            });
+          if (roundedProteinGrams / weight < 2.0) { 
+            // Warning for low protein is now handled directly under slider if deficit is also high.
+            // This specific toast can be removed or adjusted if still needed.
+            // toast({
+            //   title: "Protein Intake Suggestion",
+            //   description: `For '${activityLevel}' and weight loss, a protein intake of at least 2.0-2.4g/kg body weight is often recommended to preserve muscle. Current: ~${(roundedProteinGrams/weight).toFixed(1)}g/kg. Consider adjusting if muscle preservation is key.`,
+            //   duration: 12000,
+            // });
           }
         }
         
@@ -189,8 +183,7 @@ export default function Home() {
         const carbsGrams = carbsCalories / 4;
         setCarbs(Math.round(carbsGrams > 0 ? carbsGrams : 0));
 
-        // Water Intake Calculation: Weight (kg) × 30ml + (Exercise mins × 0.5ml)
-        const water = (weight * 30) + ((dailyExerciseMinutes || 0) * 0.5); // Using default 0 for exercise if null
+        const water = (weight * 30) + ((dailyExerciseMinutes || 0) * 0.5); 
         setWaterIntake(Math.round(water));
       }
       setIsCalculating(false);
@@ -301,7 +294,7 @@ export default function Home() {
                     value={[surplusDeficitPercentage]} 
                     max={30} 
                     min={10} 
-                    step={1} // Changed step to 1 for smoother sliding
+                    step={1} 
                     onValueChange={(value) => setSurplusDeficitPercentage(value[0])} 
                     className="mt-2" 
                     aria-label={`Surplus/Deficit percentage: ${surplusDeficitPercentage}%`}
@@ -340,7 +333,7 @@ export default function Home() {
                   <Card className="shadow-lg rounded-2xl border-border overflow-hidden">
                     <CardHeader>
                         <CardTitle className="text-lg text-foreground">Macronutrient Breakdown</CardTitle>
-                        <CardDescription className="text-xs">
+                        <CardDescription className="text-xs flex items-center">
                             Approx. targets for your {calorieGoal} goal (High Protein approach).
                             <TooltipProvider>
                                 <Tooltip>
