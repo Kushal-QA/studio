@@ -34,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {GA_TRACKING_ID && (
+        {!!GA_TRACKING_ID && (
           <>
             <Script
               strategy="afterInteractive"
@@ -54,7 +54,7 @@ export default function RootLayout({
         {children}
         <Toaster />
         {/* Component to track page changes */}
-        {GA_TRACKING_ID && (
+        {!!GA_TRACKING_ID && (
           <Suspense fallback={null}>
             <NavigationEvents />
           </Suspense>
