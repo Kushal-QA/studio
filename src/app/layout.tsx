@@ -34,9 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Google Analytics Scripts */}
         {GA_TRACKING_ID && (
           <>
+            {/* Google Analytics Scripts */}
             <Script
               strategy="afterInteractive"
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
