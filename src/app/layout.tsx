@@ -36,7 +36,6 @@ export default function RootLayout({
       <head>
         {GA_TRACKING_ID && (
           <>
-            {/* Google Analytics Scripts */}
             <Script
               strategy="afterInteractive"
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
@@ -45,14 +44,7 @@ export default function RootLayout({
               id="google-analytics"
               strategy="afterInteractive"
               dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${GA_TRACKING_ID}', {
-                    page_path: window.location.pathname,
-                  });
-                `,
+                __html: `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', '${GA_TRACKING_ID}', { page_path: window.location.pathname });`,
               }}
             />
           </>
