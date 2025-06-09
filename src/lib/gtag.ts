@@ -2,7 +2,7 @@
 // Ensure this file is not using 'use server' if it's meant for client-side utilities imported by client components.
 // If it were a server-only utility, 'use server' would be appropriate.
 
-export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID;
+export const GA_TRACKING_ID = 'G-JKN19CM9J0';
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
 export const pageview = (url: string) => {
