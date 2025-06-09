@@ -35,10 +35,21 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Google tag (gtag.js) */}
-        <Script async src="https://www.googletagmanager.com/gtag/js?id=G-JKN19CM9J0"></Script>
-        <Script id="google-analytics">
-          {`window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-JKN19CM9J0');`}
+        {!!GA_TRACKING_ID && (
+          <>
+            <Script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
             />
+            <Script
+              id="google-analytics"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', '${GA_TRACKING_ID}');`
+              }}
+            />
+          </>
+        )}
       </head>
       <body className={`${poppins.variable} ${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
